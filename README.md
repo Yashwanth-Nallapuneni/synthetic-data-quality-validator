@@ -4,6 +4,20 @@ A comprehensive framework to **evaluate the trustworthiness of synthetic tabular
 
 ---
 
+## 🌐 Live Demo & Deployment
+
+This project is deployed as a **full end-to-end product** with both a backend API and a user-facing UI.
+
+- **Interactive Streamlit UI**  
+  Upload real and synthetic CSV files, select the label column, and receive a full trust report with warnings.  
+  👉 https://synthetic-data-quality-validator.onrender.com
+
+- **FastAPI Backend (JSON API)**  
+  Programmatic access to the validator with automatic schema checks and structured output.  
+  👉 https://synthetic-data-quality-validator.onrender.com/docs
+
+---
+
 ## 🚀 Motivation
 
 Synthetic data is widely used to:
@@ -143,6 +157,29 @@ print(report["warnings"])
 
 ---
 
+## 🖥️ Command-Line Interface (CLI)
+
+The validator can be executed directly from the command line.
+
+```bash
+python -m app.cli \
+  --real data/real.csv \
+  --synth data/synth.csv \
+  --label label \
+  --out report.json
+```
+
+This generates a structured JSON report and prints a warning summary to stdout.
+
+Example output:
+```
+=== WARNINGS ===
+- Synthetic data significantly degrades probability calibration
+- Significant categorical distribution shift detected
+```
+
+---
+
 ## 📌 Design Principles
 
 - **Metric validity over convenience**
@@ -166,7 +203,8 @@ print(report["warnings"])
 
 - Support for regression utility
 - Categorical privacy metrics
-- CLI interface
+- Trust score aggregation (single 0–100 score)
+- Advanced visual analytics
 - Visualization dashboard
 - Dataset-level trust scoring
 
