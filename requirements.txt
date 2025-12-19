@@ -6,3 +6,5 @@ scipy
 scikit-learn
 pydantic
 python-multipart
+streamlit
+requests
