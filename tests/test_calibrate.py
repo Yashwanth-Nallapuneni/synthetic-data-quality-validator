@@ -152,3 +152,12 @@ def test_privacy_medium_share_is_the_null_max_below_high():
     th, _ = cal.calibrate_thresholds(nulls)
     assert th.privacy_medium_share == pytest.approx(0.07)
     assert th.privacy_high_share == pytest.approx(0.08)
+
+
+def test_embed_in_readme_replaces_only_between_markers(tmp_path):
+    p = tmp_path / "README.md"
+    p.write_text(f"before\n{cal.START_MARK}\nold\n{cal.END_MARK}\nafter\n")
+    cal.embed_in_readme(p, "NEW TABLE\n")
+    assert p.read_text() == f"before\n{cal.START_MARK}\n\nNEW TABLE\n\n{cal.END_MARK}\nafter\n"
+    cal.embed_in_readme(p, "NEW TABLE\n")
+    assert p.read_text().count("NEW TABLE") == 1

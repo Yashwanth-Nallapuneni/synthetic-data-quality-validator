@@ -244,10 +244,27 @@ def lodo_table(runs: list[dict], datasets: list[str]) -> dict:
     }
 
 
+START_MARK = "<!-- detection-matrix:start -->"
+END_MARK = "<!-- detection-matrix:end -->"
+
+
+def embed_in_readme(readme: Path, text: str) -> None:
+    """Replace the text between the detection-matrix markers in `readme` with `text`."""
+    body = readme.read_text()
+    a, b = body.index(START_MARK) + len(START_MARK), body.index(END_MARK)
+    readme.write_text(body[:a] + "\n\n" + text.strip("\n") + "\n\n" + body[b:])
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--results", type=Path, default=RESULTS)
     ap.add_argument("--thresholds-out", type=Path, default=CALIBRATED_PATH)
+    ap.add_argument(
+        "--update-readme",
+        type=Path,
+        default=None,
+        help="README whose detection-matrix markers are replaced with detection_matrix.md",
+    )
     args = ap.parse_args(argv)
 
     runs = load_runs(args.results)
@@ -348,6 +365,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     (out / "detection_matrix.md").write_text("\n".join(md))
     (out / "detection_matrix_details.md").write_text("\n".join(md_extra))
+    if args.update_readme:
+        embed_in_readme(args.update_readme, (out / "detection_matrix.md").read_text())
     print("\n".join(md + md_extra))
     return 0
 
