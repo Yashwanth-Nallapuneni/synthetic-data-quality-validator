@@ -1,0 +1,205 @@
+{
+  "thresholds": {
+    "privacy_high_share": 0.099674,
+    "privacy_medium_share": 0.089674,
+    "privacy_exact_match_margin": 0.023771,
+    "variance_ratio_low": 0.769212,
+    "variance_ratio_high": 1.385892,
+    "coverage_min": 0.7362,
+    "numeric_max_ks": 0.1364,
+    "utility_accuracy_ratio": 0.800847,
+    "utility_r2_drop": 0.2,
+    "utility_ece_increase": 0.105622,
+    "categorical_mean_l1": 0.126585,
+    "categorical_mean_js": 0.061616,
+    "categorical_worst_shift": 0.11,
+    "dependence_mean_abs_diff": 0.074027,
+    "c2st_auc": 0.606936
+  },
+  "calibration": {
+    "rule": "From heldout_real runs of the calibration seeds only. Warn-above checks: threshold = max_null + max(0.1 * |max_null|, 0.01). Warn-below checks: threshold = min_null - max(0.1 * |min_null|, 0.01). Null values are pooled over datasets, seeds and models. Target per-check false-alarm rate on fresh null data: at most 1 / (n_null_values + 1) before the margin.",
+    "date": "2026-10-08",
+    "calibration_seeds": [
+      0,
+      2,
+      4,
+      6,
+      8,
+      10,
+      12,
+      14,
+      16,
+      18
+    ],
+    "test_seeds": [
+      1,
+      3,
+      5,
+      7,
+      9,
+      11,
+      13,
+      15,
+      17,
+      19
+    ],
+    "datasets": [
+      "adult",
+      "german_credit",
+      "cmc"
+    ],
+    "n_null_runs": 30,
+    "generators_used_for_calibration": [
+      "heldout_real"
+    ],
+    "source": "experiments/results/runs.jsonl",
+    "per_threshold": {
+      "privacy_high_share": {
+        "code": "privacy_memorisation",
+        "stat": "privacy.share_closer_than_holdout_p5",
+        "direction": "above",
+        "provisional_default": 0.15,
+        "n_null_values": 30,
+        "null_extreme": 0.08967391304347826,
+        "threshold": 0.099674,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "privacy_exact_match_margin": {
+        "code": "privacy_memorisation",
+        "stat": "privacy.exact_match_excess",
+        "direction": "above",
+        "provisional_default": 0.05,
+        "n_null_values": 30,
+        "null_extreme": 0.013771061623659722,
+        "threshold": 0.023771,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "variance_ratio_low": {
+        "code": "diversity_mode_collapse",
+        "stat": "diversity.mean_variance_ratio",
+        "direction": "below",
+        "provisional_default": 0.5,
+        "n_null_values": 30,
+        "null_extreme": 0.8546802364955837,
+        "threshold": 0.769212,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "variance_ratio_high": {
+        "code": "diversity_excess_variance",
+        "stat": "diversity.mean_variance_ratio",
+        "direction": "above",
+        "provisional_default": 1.5,
+        "n_null_values": 30,
+        "null_extreme": 1.2599018614648774,
+        "threshold": 1.385892,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "coverage_min": {
+        "code": "diversity_low_coverage",
+        "stat": "diversity.coverage",
+        "direction": "below",
+        "provisional_default": 0.5,
+        "n_null_values": 30,
+        "null_extreme": 0.818,
+        "threshold": 0.7362,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "numeric_max_ks": {
+        "code": "numeric_marginal_shift",
+        "stat": "fidelity.numeric.max_ks",
+        "direction": "above",
+        "provisional_default": 0.2,
+        "n_null_values": 30,
+        "null_extreme": 0.124,
+        "threshold": 0.1364,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "categorical_mean_l1": {
+        "code": "categorical_mean_l1",
+        "stat": "fidelity.categorical.mean_l1",
+        "direction": "above",
+        "provisional_default": 0.3,
+        "n_null_values": 30,
+        "null_extreme": 0.11507692307692308,
+        "threshold": 0.126585,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "categorical_mean_js": {
+        "code": "categorical_mean_js",
+        "stat": "fidelity.categorical.mean_js",
+        "direction": "above",
+        "provisional_default": 0.2,
+        "n_null_values": 30,
+        "null_extreme": 0.051615725624873474,
+        "threshold": 0.061616,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "categorical_worst_shift": {
+        "code": "categorical_worst_shift",
+        "stat": "fidelity.categorical.max_abs_worst_shift",
+        "direction": "above",
+        "provisional_default": 0.25,
+        "n_null_values": 30,
+        "null_extreme": 0.09999999999999998,
+        "threshold": 0.11,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "dependence_mean_abs_diff": {
+        "code": "dependence_shift",
+        "stat": "dependence.mean_abs_diff",
+        "direction": "above",
+        "provisional_default": 0.1,
+        "n_null_values": 30,
+        "null_extreme": 0.06402747640815974,
+        "threshold": 0.074027,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "c2st_auc": {
+        "code": "detectability_high_auc",
+        "stat": "detectability.auc_mean",
+        "direction": "above",
+        "provisional_default": 0.7,
+        "n_null_values": 30,
+        "null_extreme": 0.55176,
+        "threshold": 0.606936,
+        "max_per_check_false_alarm_rate_before_margin": 0.03225806451612903
+      },
+      "utility_accuracy_ratio": {
+        "code": "utility_degradation",
+        "stat": "utility.*.accuracy_ratio",
+        "direction": "below",
+        "provisional_default": 0.8,
+        "n_null_values": 60,
+        "null_extreme": 0.8898305084745762,
+        "threshold": 0.800847,
+        "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082
+      },
+      "utility_r2_drop": {
+        "code": "utility_degradation",
+        "stat": "utility.*.r2_drop",
+        "direction": "above",
+        "provisional_default": 0.2,
+        "n_null_values": 0,
+        "note": "no null values recorded, provisional default kept"
+      },
+      "utility_ece_increase": {
+        "code": "utility_calibration_degradation",
+        "stat": "utility.*.ece_increase",
+        "direction": "above",
+        "provisional_default": 0.1,
+        "n_null_values": 60,
+        "null_extreme": 0.09562177368007174,
+        "threshold": 0.105622,
+        "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082
+      },
+      "privacy_medium_share": {
+        "rule": "max_null of the privacy share statistic (no margin); display only",
+        "threshold": 0.089674,
+        "provisional_default": 0.1
+      }
+    },
+    "not_calibrated": [
+      "utility_r2_drop"
+    ]
+  }
+}
