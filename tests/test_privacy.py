@@ -4,6 +4,7 @@ import pytest
 
 from app.metrics.privacy import compute_privacy_risk
 from app.report import generate_trust_report
+from tests.conftest import codes
 
 
 def _real(n=500, seed=0):
@@ -31,7 +32,7 @@ def test_noisy_near_copy_is_flagged_high():
     assert p["privacy_risk_level"] == "HIGH"
     assert p["share_closer_than_holdout_p5"] > 0.15
     report = generate_trust_report(real, synth, "label")
-    assert "High memorization risk detected" in report["warnings"]
+    assert "privacy_memorisation" in codes(report)
 
 
 def test_exact_copy_is_flagged_high():
@@ -49,7 +50,7 @@ def test_fresh_sample_is_not_flagged(seed):
     assert p["privacy_risk_level"] != "HIGH"
     assert p["share_closer_than_holdout_p5"] < 0.15
     report = generate_trust_report(real, synth, "label", seed=seed)
-    assert "High memorization risk detected" not in report["warnings"]
+    assert "privacy_memorisation" not in codes(report)
 
 
 def test_scale_invariance_large_column_does_not_dominate():

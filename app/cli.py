@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     print("\n=== WARNINGS ===")
     if report["warnings"]:
         for w in report["warnings"]:
-            print(f"- {w}")
+            print(f"- [{w['code']}] {w['message']}")
     else:
         print("No major issues detected.")
 

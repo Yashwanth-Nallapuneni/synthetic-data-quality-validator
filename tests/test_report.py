@@ -9,7 +9,7 @@ from app.errors import InputError
 from app.metrics.diversity import compute_diversity
 from app.report import generate_trust_report
 from app.thresholds import Thresholds
-from tests.conftest import make_dataset
+from tests.conftest import codes, make_dataset
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
@@ -99,23 +99,23 @@ def test_report_has_new_sections_and_thresholds():
 def test_independently_shuffled_columns_trigger_dependence_and_c2st_warnings():
     real = make_dataset(1500, 1)
     report = generate_trust_report(real, _shuffle_columns(real), "label")
-    assert "Pairwise dependencies differ from the real data" in report["warnings"]
+    assert "dependence_shift" in codes(report)
     assert report["dependence"]["summary"]["mean_abs_diff"] > 0.1
 
 
 def test_clean_data_has_neither_new_warning():
     report = generate_trust_report(make_dataset(1500, 1), make_dataset(1500, 2), "label")
-    assert "Pairwise dependencies differ from the real data" not in report["warnings"]
-    assert "Synthetic rows are easily distinguishable from real rows" not in report["warnings"]
+    assert "dependence_shift" not in codes(report)
+    assert "detectability_high_auc" not in codes(report)
 
 
 def test_c2st_warning_fires_for_shifted_data_and_respects_custom_threshold():
     real, synth = make_dataset(1000, 1), make_dataset(1000, 2)
     synth["income"] += 30000
-    msg = "Synthetic rows are easily distinguishable from real rows"
-    assert msg in generate_trust_report(real, synth, "label")["warnings"]
+    msg = "detectability_high_auc"
+    assert msg in codes(generate_trust_report(real, synth, "label"))
     lax = Thresholds(c2st_auc=0.999)
-    assert msg not in generate_trust_report(real, synth, "label", thresholds=lax)["warnings"]
+    assert msg not in codes(generate_trust_report(real, synth, "label", thresholds=lax))
 
 
 def test_label_in_dependence_so_shuffled_labels_are_seen():
@@ -144,7 +144,7 @@ def test_holdout_mode_catches_copy_of_all_real_rows_more_sharply():
     synth = real.copy()
     synth["income"] += np.random.default_rng(0).normal(0, 1, len(synth))
     report = generate_trust_report(real, synth, "label", holdout_df=make_dataset(500, 9))
-    assert "High memorization risk detected" in report["warnings"]
+    assert "privacy_memorisation" in codes(report)
     assert report["privacy"]["share_closer_than_holdout_p5"] > 0.9
 
 
@@ -170,3 +170,21 @@ def test_detectability_subsampling_is_noted(monkeypatch):
     report = generate_trust_report(make_dataset(300, 1), make_dataset(300, 2), "label")
     assert report["detectability"]["n_per_side"] == 100
     assert any("subsample of 100 rows per side" in n for n in report["notices"])
+
+
+def test_warnings_are_structured_with_stable_codes():
+    real = make_dataset(1000, 1)
+    report = generate_trust_report(real, _shuffle_columns(real), "label")
+    assert report["warnings"]
+    for w in report["warnings"]:
+        assert set(w) == {"code", "message", "metric", "value", "threshold"}
+        assert w["code"].replace("_", "").isalnum() and w["code"] == w["code"].lower()
+        assert isinstance(w["value"], float) and isinstance(w["threshold"], float)
+    json.dumps(report, allow_nan=False)
+
+
+def test_low_coverage_and_numeric_shift_warnings():
+    real, synth = make_dataset(1000, 1), make_dataset(1000, 2)
+    synth = synth.iloc[:3].sample(1000, replace=True, random_state=0).reset_index(drop=True)
+    c = codes(generate_trust_report(real, synth, "label"))
+    assert {"diversity_low_coverage", "numeric_marginal_shift", "diversity_mode_collapse"} <= c

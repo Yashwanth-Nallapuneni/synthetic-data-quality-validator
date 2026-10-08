@@ -24,7 +24,7 @@ def test_exit_1_on_warnings(tmp_path, capsys):
         ]
     )
     assert code == 1
-    assert "memorization" in capsys.readouterr().out
+    assert "[privacy_memorisation]" in capsys.readouterr().out
 
 
 def test_exit_0_when_clean(tmp_path):

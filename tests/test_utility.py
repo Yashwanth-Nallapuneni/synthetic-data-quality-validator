@@ -6,7 +6,7 @@ import pytest
 
 from app.metrics.utility import compute_utility, detect_task, expected_calibration_error
 from app.report import generate_trust_report
-from tests.conftest import make_dataset
+from tests.conftest import codes, make_dataset
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
@@ -130,7 +130,7 @@ def test_single_class_synthetic_labels_do_not_crash():
     assert u["status"] == "ok"
     assert u["synthetic_single_class"] is True
     report = generate_trust_report(real, synth, "label")
-    assert "Synthetic labels contain a single class" in report["warnings"]
+    assert "utility_synthetic_single_class" in codes(report)
 
 
 def test_single_class_real_labels_are_insufficient():

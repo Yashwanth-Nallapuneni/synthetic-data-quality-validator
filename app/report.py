@@ -1,5 +1,6 @@
 import pandas as pd
 
+from app.checks import evaluate_checks, extract_context, extract_stats
 from app.errors import InputError
 from app.metrics.categorical_fidelity import compute_categorical_fidelity
 from app.metrics.dependence import compute_dependence
@@ -199,79 +200,10 @@ def generate_trust_report(
             f"Coverage queried a seeded subsample of {coverage['n_real_queried']} real rows."
         )
 
-    # 7. Warnings
+    # 7. Warnings (see app/checks.py)
 
-    warnings = []
-
-    if privacy["status"] == "ok" and privacy["privacy_risk_level"] == "HIGH":
-        warnings.append("High memorization risk detected")
-
-    # Diversity warnings
-    var_ratio = report["diversity"]["mean_variance_ratio"]
-    if var_ratio is None:
-        pass
-    elif var_ratio < th.variance_ratio_low:
-        warnings.append("Synthetic data shows signs of mode collapse")
-    elif var_ratio > th.variance_ratio_high:
-        warnings.append("Synthetic data shows excessive variance / instability")
-
-    warnings.extend(_utility_warnings(report["utility"], th))
-
-    # Dependence and detectability warnings
-    if (
-        report["dependence"]["status"] == "ok"
-        and report["dependence"]["summary"]["mean_abs_diff"] > th.dependence_mean_abs_diff
-    ):
-        warnings.append("Pairwise dependencies differ from the real data")
-    if (
-        report["detectability"]["status"] == "ok"
-        and report["detectability"]["auc_mean"] > th.c2st_auc
-    ):
-        warnings.append("Synthetic rows are easily distinguishable from real rows")
-
-    # Categorical distortion warnings (B2.4)
-
-    cat_fidelity = report["fidelity"].get("categorical")
-
-    if cat_fidelity:
-        summary = cat_fidelity["summary"]
-        per_feature = cat_fidelity["per_feature"]
-
-        # Overall categorical shift
-        if summary["mean_l1"] > th.categorical_mean_l1:
-            warnings.append("Significant categorical distribution shift detected")
-
-        # High JS divergence
-        if summary["mean_js"] > th.categorical_mean_js:
-            warnings.append("Categorical distributions differ substantially (high JS divergence)")
-
-        # Severe single-category distortion
-        for col, stats in per_feature.items():
-            if abs(stats["worst_shift"]) > th.categorical_worst_shift:
-                warnings.append(
-                    f"Severe distortion in category '{stats['worst_category']}' of feature '{col}'"
-                )
+    warnings = evaluate_checks(extract_stats(report), th, extract_context(report))
 
     report["warnings"] = warnings
     report["thresholds"] = th.to_dict()
     return to_jsonable(report)
-
-
-def _utility_warnings(utility: dict, th: Thresholds) -> list[str]:
-    """Warnings derived from the utility block (provisional thresholds), one per model."""
-    out: list[str] = []
-    if utility["status"] != "ok":
-        return out
-    if utility.get("synthetic_single_class"):
-        out.append("Synthetic labels contain a single class")
-    for name, m in utility["models"].items():
-        cmp_ = m["tstr_vs_trtr"]
-        if utility["task"] == "regression":
-            if cmp_["r2_drop"] > th.utility_r2_drop:
-                out.append(f"Significant downstream utility degradation ({name})")
-            continue
-        if m["tstr"]["accuracy"] < th.utility_accuracy_ratio * m["trtr"]["accuracy"]:
-            out.append(f"Significant downstream utility degradation ({name})")
-        if cmp_["ece_increase"] > th.utility_ece_increase:
-            out.append(f"Synthetic data significantly degrades probability calibration ({name})")
-    return out

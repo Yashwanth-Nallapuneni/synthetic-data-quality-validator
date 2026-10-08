@@ -76,7 +76,7 @@ if validate_btn:
                     st.subheader("Warnings")
                     if report["warnings"]:
                         for w in report["warnings"]:
-                            st.warning(w)
+                            st.warning(f"`{w['code']}`: {w['message']}")
                     else:
                         st.write("No warnings")
 

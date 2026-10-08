@@ -5,7 +5,7 @@ import pytest
 from app.errors import InputError
 from app.report import generate_trust_report
 from app.thresholds import Thresholds, load_thresholds
-from tests.conftest import make_dataset
+from tests.conftest import codes, make_dataset
 
 
 def test_defaults_when_no_path():
@@ -38,4 +38,4 @@ def test_report_uses_given_thresholds():
     real, synth = make_dataset(400, 1), make_dataset(400, 2)
     strict = Thresholds(variance_ratio_low=5.0)
     report = generate_trust_report(real, synth, "label", thresholds=strict)
-    assert "Synthetic data shows signs of mode collapse" in report["warnings"]
+    assert "diversity_mode_collapse" in codes(report)

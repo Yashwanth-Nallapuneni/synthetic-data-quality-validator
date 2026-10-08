@@ -21,6 +21,10 @@ class Thresholds:
     # Diversity (mean per-column variance ratio, synthetic over real)
     variance_ratio_low: float = 0.5
     variance_ratio_high: float = 1.5
+    # Diversity (k-NN coverage of the real data; warn when below)
+    coverage_min: float = 0.5
+    # Numeric marginals (largest per-column KS statistic)
+    numeric_max_ks: float = 0.2
     # Utility (TSTR compared with TRTR)
     utility_accuracy_ratio: float = 0.8
     utility_r2_drop: float = 0.2

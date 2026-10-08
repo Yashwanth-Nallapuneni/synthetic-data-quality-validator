@@ -77,14 +77,25 @@ Two modes:
 
 ### Warnings
 Every threshold lives in `app/thresholds.py`. They are provisional hand-picked values, not calibrated. `load_thresholds(path)` and `--thresholds` accept a JSON file that overrides any of them, and the thresholds used are included in the report. Warnings are raised when:
-- privacy risk is HIGH
-- mean variance ratio is outside `variance_ratio_low` to `variance_ratio_high` (0.5 to 1.5)
-- for any utility model, TSTR accuracy is below `utility_accuracy_ratio` (0.8) times TRTR accuracy, or the TSTR R2 drop is above `utility_r2_drop` (0.2), or TSTR ECE is more than `utility_ece_increase` (0.1) above TRTR ECE
-- synthetic labels contain a single class
-- mean categorical L1 is above `categorical_mean_l1` (0.3) or mean categorical JS is above `categorical_mean_js` (0.2)
-- any single category shifts by more than `categorical_worst_shift` (0.25)
-- the mean absolute dependence difference is above `dependence_mean_abs_diff` (0.1)
-- the C2ST AUC is above `c2st_auc` (0.7)
+Each warning is an object `{"code", "message", "metric", "value", "threshold"}`. The code is a stable snake_case id, `metric` is the path of the statistic that crossed the threshold and `value` and `threshold` are the numbers compared. Any warning makes the API severity `issues` and the CLI exit code 1. The checks live in `app/checks.py`.
+
+| Code | Fires when |
+|---|---|
+| `privacy_memorisation` | the share of synthetic rows closer to train than the holdout 5th percentile is above `privacy_high_share` (0.15), or the exact-match rate exceeds the holdout rate by more than `privacy_exact_match_margin` (0.05) |
+| `diversity_mode_collapse` | mean variance ratio is below `variance_ratio_low` (0.5) |
+| `diversity_excess_variance` | mean variance ratio is above `variance_ratio_high` (1.5) |
+| `diversity_low_coverage` | k-NN coverage is below `coverage_min` (0.5) |
+| `numeric_marginal_shift` | the largest per-column KS statistic is above `numeric_max_ks` (0.2) |
+| `categorical_mean_l1` | mean categorical L1 is above `categorical_mean_l1` (0.3) |
+| `categorical_mean_js` | mean categorical JS is above `categorical_mean_js` (0.2) |
+| `categorical_worst_shift` | the largest single-category share shift is above `categorical_worst_shift` (0.25) |
+| `dependence_shift` | the mean absolute dependence difference is above `dependence_mean_abs_diff` (0.1) |
+| `detectability_high_auc` | the C2ST AUC is above `c2st_auc` (0.7) |
+| `utility_degradation` | for any model, TSTR accuracy is below `utility_accuracy_ratio` (0.8) times TRTR accuracy, or the TSTR R2 drop is above `utility_r2_drop` (0.2). The model is named in the message |
+| `utility_calibration_degradation` | for any model, TSTR ECE is more than `utility_ece_increase` (0.1) above TRTR ECE |
+| `utility_synthetic_single_class` | synthetic labels contain a single class |
+
+The numbers in brackets are the provisional defaults.
 
 The report also has a `notices` list for things that are not warnings, such as a metric skipped because the data was too small, a subsample being used or the privacy baseline mode.
 

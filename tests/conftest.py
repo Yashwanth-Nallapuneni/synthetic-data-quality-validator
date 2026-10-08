@@ -28,3 +28,8 @@ def make_dataset(n=400, seed=0, n_classes=2, label="label", label_position="last
 @pytest.fixture
 def make():
     return make_dataset
+
+
+def codes(report) -> set[str]:
+    """Set of warning codes in a report."""
+    return {w["code"] for w in report["warnings"]}
