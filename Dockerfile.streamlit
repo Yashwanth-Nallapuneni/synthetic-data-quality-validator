@@ -8,6 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # ui.py imports its table-building helpers from app/ (app/ui_helpers.py)
 COPY app ./app
 COPY ui.py .
+# Streamlit config (upload limit matches MAX_UPLOAD_BYTES)
+COPY .streamlit ./.streamlit
 
 EXPOSE 8501
 

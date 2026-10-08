@@ -249,6 +249,8 @@ pip install -e ".[ui]"
 API_URL=http://localhost:8000/validate streamlit run ui.py
 ```
 
+The upload widgets are limited to 10 MB per file (`.streamlit/config.toml`, `maxUploadSize = 10`) to match the API default for `MAX_UPLOAD_BYTES`. If you raise `MAX_UPLOAD_BYTES`, raise `maxUploadSize` (in MB) too.
+
 Upload the real and synthetic CSV files, optionally a holdout CSV, pick the label column from a selectbox filled from the real file and press Validate. The metrics are computed by the API. The UI only reads the uploaded files itself to draw the marginal plot. It shows:
 - a verdict banner (clean or issues), the notices and a table of warnings with code, message, value and threshold
 - a per-dimension verdict table (pass, warn or not computed) that lists which checks fired
