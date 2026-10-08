@@ -98,3 +98,14 @@ def to_jsonable(obj):
     if isinstance(obj, np.ndarray):
         return to_jsonable(obj.tolist())
     return obj
+
+
+def limit_threads_for_small_data(n_rows: int, threshold: int = 5000):
+    """Context manager that pins OpenMP to one thread for small inputs.
+
+    Gradient boosting on a few hundred rows is dominated by thread start-up cost
+    (about 5x slower with all cores in our measurements), so small fits run single-threaded.
+    """
+    from threadpoolctl import threadpool_limits
+
+    return threadpool_limits(limits=1 if n_rows < threshold else None, user_api="openmp")
