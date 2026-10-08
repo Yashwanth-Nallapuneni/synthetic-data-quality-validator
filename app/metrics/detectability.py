@@ -27,7 +27,7 @@ def compute_detectability(
     numeric_cols: list[str],
     categorical_cols: list[str],
     seed: int = 42,
-    max_rows_per_side: int = MAX_ROWS_PER_SIDE,
+    max_rows_per_side: int | None = None,
     n_splits: int = N_SPLITS,
 ) -> dict:
     """Cross-validated real-vs-synthetic classifier AUC.
@@ -42,7 +42,7 @@ def compute_detectability(
     if not features:
         return {"status": "insufficient_data", "reason": "No usable feature columns"}
 
-    n = min(len(real_df), len(synth_df), max_rows_per_side)
+    n = min(len(real_df), len(synth_df), max_rows_per_side or MAX_ROWS_PER_SIDE)
     if min(len(real_df), len(synth_df)) < MIN_ROWS_PER_SIDE:
         return {
             "status": "insufficient_data",

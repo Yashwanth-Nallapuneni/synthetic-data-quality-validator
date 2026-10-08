@@ -15,15 +15,14 @@ def csv_bytes(df) -> bytes:
     return df.to_csv(index=False).encode()
 
 
-def post(real, synth, label="label"):
-    return client.post(
-        "/validate",
-        files={
-            "real": ("real.csv", io.BytesIO(real), "text/csv"),
-            "synth": ("synth.csv", io.BytesIO(synth), "text/csv"),
-        },
-        data={"label_column": label},
-    )
+def post(real, synth, label="label", holdout=None):
+    files = {
+        "real": ("real.csv", io.BytesIO(real), "text/csv"),
+        "synth": ("synth.csv", io.BytesIO(synth), "text/csv"),
+    }
+    if holdout is not None:
+        files["holdout"] = ("holdout.csv", io.BytesIO(holdout), "text/csv")
+    return client.post("/validate", files=files, data={"label_column": label})
 
 
 @pytest.fixture
@@ -43,7 +42,16 @@ def test_happy_path(frames):
     body = r.json()
     assert body["severity"] in {"clean", "issues"}
     assert body["report"]["utility"]["status"] == "ok"
-    assert set(body["report"]) >= {"fidelity", "utility", "privacy", "diversity", "warnings"}
+    assert set(body["report"]) >= {
+        "fidelity",
+        "utility",
+        "privacy",
+        "diversity",
+        "dependence",
+        "detectability",
+        "warnings",
+    }
+    assert body["report"]["privacy"]["mode"] == "split_real_50_50"
 
 
 def test_label_in_first_column(frames):
@@ -118,3 +126,27 @@ def test_internal_value_error_is_500_not_400(frames, monkeypatch):
     r = post(csv_bytes(frames[0]), csv_bytes(frames[1]))
     assert r.status_code == 500
     assert "internal bug" not in r.json()["detail"]
+
+
+def test_optional_holdout_upload_switches_privacy_mode(frames):
+    holdout = make_dataset(300, 3)
+    r = post(csv_bytes(frames[0]), csv_bytes(frames[1]), holdout=csv_bytes(holdout))
+    assert r.status_code == 200
+    privacy = r.json()["report"]["privacy"]
+    assert privacy["mode"] == "provided_holdout"
+    assert privacy["n_holdout"] == 300
+
+
+def test_holdout_with_different_columns_is_400(frames):
+    holdout = make_dataset(300, 3).rename(columns={"age": "years"})
+    r = post(csv_bytes(frames[0]), csv_bytes(frames[1]), holdout=csv_bytes(holdout))
+    assert r.status_code == 400
+    assert "holdout" in r.json()["detail"]
+
+
+def test_holdout_row_cap_is_413(frames, monkeypatch):
+    monkeypatch.setenv("MAX_ROWS", "400")
+    big_holdout = make_dataset(500, 3)
+    r = post(csv_bytes(frames[0]), csv_bytes(frames[1]), holdout=csv_bytes(big_holdout))
+    assert r.status_code == 413
+    assert "holdout" in r.json()["detail"]

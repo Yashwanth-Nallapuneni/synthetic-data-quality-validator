@@ -80,3 +80,46 @@ def test_exit_2_on_usage_error():
     with pytest.raises(SystemExit) as e:
         main([])
     assert e.value.code == 2
+
+
+def test_holdout_and_thresholds_options_and_summary(tmp_path, capsys):
+    real, synth, holdout = make_dataset(400, 1), make_dataset(400, 2), make_dataset(400, 3)
+    thresholds = tmp_path / "t.json"
+    thresholds.write_text(json.dumps({"variance_ratio_low": 5.0}))
+    out = tmp_path / "report.json"
+    code = main(
+        [
+            "--real",
+            write(tmp_path, "r.csv", real),
+            "--synth",
+            write(tmp_path, "s.csv", synth),
+            "--holdout",
+            write(tmp_path, "h.csv", holdout),
+            "--thresholds",
+            str(thresholds),
+            "--label",
+            "label",
+            "--out",
+            str(out),
+        ]
+    )
+    text = capsys.readouterr().out
+    report = json.loads(out.read_text())
+    assert code == 1
+    assert report["privacy"]["mode"] == "provided_holdout"
+    assert "mode collapse" in text
+    assert "Detectability (C2ST): AUC" in text
+    assert "Dependence: mean abs difference" in text
+    assert "Utility logistic_regression" in text
+    assert report["thresholds"]["variance_ratio_low"] == 5.0
+
+
+def test_exit_2_on_bad_thresholds_file_and_bad_holdout(tmp_path):
+    df = make_dataset(100, 1)
+    p = write(tmp_path, "r.csv", df)
+    bad = tmp_path / "t.json"
+    bad.write_text('{"nope": 1}')
+    base = ["--real", p, "--synth", p, "--label", "label"]
+    assert main(base + ["--thresholds", str(bad)]) == 2
+    holdout = write(tmp_path, "h.csv", df.rename(columns={"age": "years"}))
+    assert main(base + ["--holdout", holdout]) == 2

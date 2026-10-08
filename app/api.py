@@ -74,13 +74,19 @@ async def validate_synthetic_data(
     real: UploadFile = File(...),
     synth: UploadFile = File(...),
     label_column: str = Form(...),
+    holdout: UploadFile | None = File(None),
 ):
     real_df = await _read_csv(real, "real")
     synth_df = await _read_csv(synth, "synthetic")
+    holdout_df = await _read_csv(holdout, "holdout") if holdout is not None else None
 
     try:
         report = await run_in_threadpool(
-            generate_trust_report, real_df, synth_df, label_column=label_column
+            generate_trust_report,
+            real_df,
+            synth_df,
+            label_column=label_column,
+            holdout_df=holdout_df,
         )
     except InputError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
