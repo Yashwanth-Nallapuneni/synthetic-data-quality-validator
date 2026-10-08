@@ -5,7 +5,7 @@ This folder holds two protocol versions. **v2** (current) is described first. **
 Reproduce everything with two commands from the repo root (with the dev environment active):
 
 ```bash
-python -m experiments.benchmark                          # about 3 minutes on 8 cores, needs network once
+python -m experiments.benchmark                          # 40 seeds, several minutes on 8 cores, needs network once
 python -m experiments.calibrate --update-readme README.md
 ```
 
@@ -15,20 +15,20 @@ python -m experiments.calibrate --update-readme README.md
 
 | File | Purpose |
 |---|---|
-| `generators.py` | Gaussian copula and the six failure injections |
+| `generators.py` | Gaussian copula and the six failure injections (`fresh` rows for the four isolated ones) |
 | `benchmark.py` | Splits, runs, records raw statistics (`stats`) and provisional-threshold warning codes per run |
-| `calibrate.py` | Threshold learning, test-half evaluation, leave-one-dataset-out variant |
+| `calibrate.py` | Threshold learning, test-set evaluation, leave-one-dataset-out variant |
 | `results/runs.jsonl` | One line per (dataset, seed, generator): statistics, runtime, errors |
 | `results/meta.json` | Datasets (id, name, version, licence), seeds, split, package versions, total runtime |
-| `results/detection_matrix.md` and `.json` | Hit rate per generator and warning code on the test half, intended and any-warning rates, per-dataset breakdown |
+| `results/detection_matrix.md` and `.json` | Hit rate per generator and warning code on the test seeds, intended and any-warning rates, per-dataset breakdown |
 | `results/detection_matrix_details.md` | Per-dataset table and the leave-one-dataset-out matrix |
 | `results/summary.json` | Headline: failure modes detected, `heldout_real` false-alarm count, copula rate, leave-one-dataset-out headline |
 
 ## Design
 
 - Datasets: Adult (OpenML id 1590, version 2), German credit (id 31, `credit-g` version 1) and CMC (id 23, version 1). Adult is subsampled to 6,000 rows per seed (stratified by label, seeded) so a full run takes minutes. All three list the licence as Public on OpenML
-- Per (dataset, seed): a stratified 50 / 25 / 25 split into T (generator training set and `real_df`), H_gold (output of the `heldout_real` generator) and H_base (`holdout_df`, the privacy baseline). Every generator makes `len(H_gold)` rows from T, so row counts are equal across generators
-- Seeds 0 to 19. The seed controls the subsample, the split, the generator and the validator's own randomness
+- Per (dataset, seed): a stratified 50 / 25 / 25 split into T (generator training set and `real_df`), H_gold (output of the `heldout_real` generator) and H_base (`holdout_df`, the privacy baseline). Every generator makes `len(H_gold)` rows, so row counts are equal across generators. `exact_copy`, `near_copy` and the copula use T. The other four injections start from H_gold (see Changes between v1 and v2)
+- Seeds 0 to 39. Seeds 0 to 19 are the calibration set and seeds 20 to 39 are the test set. All headline numbers come from seeds 20 to 39. The seed controls the subsample, the split, the generator and the validator's own randomness
 - Statistics recorded per run are exactly the numbers `app/checks.py` compares with thresholds (`extract_stats`), so thresholds can be recalibrated without re-running any metric. `tests/test_benchmark.py` checks that re-applying thresholds to recorded statistics gives the same warning codes as `generate_trust_report` on the same inputs
 - Threshold rule and the intended-warning mapping are written in the `calibrate.py` module docstring and in the main README
 
@@ -39,14 +39,25 @@ python -m experiments.calibrate --update-readme README.md
 | `exact_copy` | `len(H_gold)` rows of T sampled without replacement |
 | `near_copy` | the same, plus Gaussian noise with std 1% of each numeric column's std; categoricals unchanged |
 | `near_copy_5pct` | as `near_copy` with 5% (reported, not in the headline count) |
-| `column_shuffle` | bootstrap of T, then every column (label included) permuted independently |
-| `mode_collapse` | 5 random rows of T, sampled with replacement, plus 1% numeric jitter |
-| `category_oversample` | bootstrap of T; the categorical feature with the most categories in T has 50% of its rows set to its rarest category in T |
-| `label_shuffle` | bootstrap of T with the label column permuted |
+| `column_shuffle` | bootstrap of H_gold, then every column (label included) permuted independently |
+| `mode_collapse` | 5 random rows of H_gold, sampled with replacement, plus 1% numeric jitter (scaled by the training column's std) |
+| `category_oversample` | bootstrap of H_gold; the categorical feature with the most categories in T has 50% of its rows set to its rarest category in T |
+| `label_shuffle` | bootstrap of H_gold with the label column permuted |
 
 The Gaussian copula maps numeric columns through the empirical CDF to normal scores and categorical columns (label included) to jittered intervals by frequency, fits a multivariate normal to the scores and inverts the mapping. Integer-like columns are rounded back. Missing categoricals are their own category and missing numerics are re-created at the training missing rate.
 
-## Changes made after the first run
+## Changes between v1 and v2
+
+v1 (seeds 0 to 19, even seeds calibration and odd seeds test) exposed a design flaw and two metric weaknesses. These changes were motivated by looking at the v1 test-half results, so the v1 test seeds were seen and are now part of the calibration set. To keep the evidence clean, v2 uses seeds 0 to 19 for calibration only and reports every headline number from new seeds 20 to 39, which nobody had looked at. All choices below were fixed before seeds 20 to 39 were run and are not to be re-tuned after seeing v2 results. Anything wrong found after the v2 run is documented, not fixed.
+
+1. **Isolated failure modes.** In v1, `column_shuffle`, `mode_collapse`, `category_oversample` and `label_shuffle` bootstrapped from T, the rows the privacy check compares against, so `privacy_memorisation` fired on all of them for reasons unrelated to the injected failure and the any-warning rate was inflated. In v2 these four start from H_gold (real rows not in T). Only `exact_copy` and `near_copy` use T. The row count is still `len(H_gold)`
+2. **Tie-robust privacy statistic.** The v1 privacy rule counts synthetic rows below the 5th percentile of holdout DCR. On data with many duplicate rows (CMC) that percentile is exactly 0, so a noisy copy is never counted and `near_copy` was missed on CMC. v2 adds `dcr_closeness_auc` = P(synthetic DCR < holdout DCR) + 0.5 P(equal), computed from ranks. It is 0.5 without memorisation. `privacy_memorisation` now fires if the AUC, the share or the exact-match excess exceeds its calibrated threshold. The share and exact-match statistics are still reported
+3. **Balanced accuracy for utility.** Plain accuracy hides label damage on imbalanced labels (a majority-class predictor still scores about 0.76 on Adult). For classification `utility_degradation` now uses the TSTR / TRTR balanced-accuracy ratio, whose chance level is 1/k whatever the class balance. Accuracy and F1 are still reported. The threshold field was renamed `utility_balanced_accuracy_ratio`. Regression still uses the R2 drop
+4. **Calibration rule unchanged.** Null extreme over the `heldout_real` calibration runs plus a margin of max(10%, 0.01). Calibration now uses 20 seeds per dataset (60 null runs) instead of 10 (30). The empirical false-alarm rate of each check on the 60 test null runs is reported
+5. **Leave-one-dataset-out variant kept.** Its thresholds now use only calibration-seed null runs of the other datasets
+6. **Layout.** The v1 results are archived in `results/v1/` unchanged, together with the v1 calibrated thresholds
+
+## Changes made inside v1 (after its first run)
 
 - `privacy_medium_share` was initially left at the provisional value, which ended up above the calibrated `privacy_high_share`. It is now set to the largest null value of the privacy statistic with no margin. It only changes the displayed risk level (MEDIUM versus LOW), never a warning, so no result in the detection matrix changed
 - The shape of the generated markdown was fixed (the leave-one-dataset-out sentence had landed above its table). No numbers changed
