@@ -1,7 +1,9 @@
-"""Downstream utility: train on synthetic vs train on real, test on held-out real."""
+"""Downstream utility: TSTR (train on synthetic) vs TRTR (train on real), tested on real."""
 
 import numpy as np
 import pandas as pd
+from sklearn.base import clone
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
@@ -13,6 +15,7 @@ from app.utils.preprocessing import (
     as_numeric,
     build_preprocessor,
     coerce_features,
+    limit_threads_for_small_data,
 )
 
 MIN_ROWS = 10
@@ -95,6 +98,37 @@ def _constant_classification_metrics(label, y_test) -> dict:
     }
 
 
+def _make_models(task: str, seed: int) -> dict:
+    """Unfitted estimators by report name. Each model gets its own fresh preprocessing."""
+    if task == "regression":
+        return {
+            "ridge_regression": Ridge(alpha=1.0),
+            "hist_gradient_boosting": HistGradientBoostingRegressor(
+                max_iter=100, random_state=seed
+            ),
+        }
+    return {
+        "logistic_regression": LogisticRegression(max_iter=1000, random_state=seed),
+        "hist_gradient_boosting": HistGradientBoostingClassifier(max_iter=100, random_state=seed),
+    }
+
+
+def _regression_metrics(model, X_test, y_test) -> dict:
+    pred = model.predict(X_test)
+    return {
+        "r2": float(r2_score(y_test, pred)),
+        "mae": float(mean_absolute_error(y_test, pred)),
+    }
+
+
+def _comparison(task: str, trtr: dict, tstr: dict) -> dict:
+    """Summary of how much TSTR falls short of TRTR."""
+    if task == "regression":
+        return {"r2_drop": trtr["r2"] - tstr["r2"]}
+    ratio = tstr["accuracy"] / trtr["accuracy"] if trtr["accuracy"] > 0 else None
+    return {"accuracy_ratio": ratio, "ece_increase": tstr["ece"] - trtr["ece"]}
+
+
 def compute_utility(
     real_df: pd.DataFrame,
     synth_df: pd.DataFrame,
@@ -103,15 +137,19 @@ def compute_utility(
     categorical_cols: list[str] | None = None,
     seed: int = 42,
 ) -> dict:
-    """Compare ML utility of real-trained vs synthetic-trained models on held-out real data.
+    """TRTR vs TSTR downstream utility, per model.
 
-    Features are the given numeric and categorical columns (default: detected from the
-    real features). Numeric columns are standardised and categorical columns one-hot
-    encoded inside an sklearn Pipeline. The label may be any column.
+    The real rows are split once (70/30, seeded). For each model, TRTR trains on the real
+    train split and TSTR trains on all synthetic rows; both are scored on the same held-out
+    real test split. Features are the given numeric and categorical columns (default:
+    detected from the real features). Numeric columns are standardised and categorical
+    columns one-hot encoded inside an sklearn Pipeline. The label may be any column.
 
-    Classification reports accuracy, weighted F1 and top-label ECE. Regression reports
-    R2 and MAE. When the data are too small the result has status "insufficient_data"
-    and a reason instead of metrics.
+    Models: logistic regression and histogram gradient boosting for classification (accuracy,
+    weighted F1, top-label ECE; binary and multiclass), ridge regression and histogram
+    gradient boosting for regression (R2, MAE). The result has `models[name]["trtr"]`,
+    `["tstr"]` and `["tstr_vs_trtr"]`. When the data are too small the result has status
+    "insufficient_data" and a reason instead of metrics.
     """
     if label_column not in real_df.columns or label_column not in synth_df.columns:
         raise ValueError(f"Label column '{label_column}' must exist in both datasets")
@@ -155,36 +193,40 @@ def compute_utility(
     if task == "classification" and yr_train.nunique() < 2:
         return _insufficient("Real training split has a single class", task)
 
-    def make_pipeline() -> Pipeline:
+    def fit(estimator, X, y) -> Pipeline:
         pre = build_preprocessor(list(numeric_cols), list(categorical_cols))
+        return Pipeline([("pre", pre), ("model", estimator)]).fit(X, y)
+
+    def score(model, X_test, y_test) -> dict:
         if task == "regression":
-            model = Ridge(alpha=1.0)
-        else:
-            model = LogisticRegression(max_iter=1000, random_state=seed)
-        return Pipeline([("pre", pre), ("model", model)])
+            return _regression_metrics(model, X_test, y_test)
+        return _classification_metrics(model, X_test, y_test)
 
-    result: dict = {"status": "ok", "reason": None, "task": task}
-    real_model = make_pipeline().fit(Xr_train, yr_train)
+    result: dict = {
+        "status": "ok",
+        "reason": None,
+        "task": task,
+        "n_real_train": int(len(Xr_train)),
+        "n_real_test": int(len(Xr_test)),
+        "n_synthetic": int(len(X_synth)),
+        "models": {},
+    }
+    synthetic_single_class = task == "classification" and y_synth.nunique() < 2
+    if task == "classification":
+        result["n_classes"] = int(y_real.nunique())
+        result["synthetic_single_class"] = bool(synthetic_single_class)
 
-    if task == "regression":
-        synth_model = make_pipeline().fit(X_synth, y_synth)
-        for name, model in (("real_train", real_model), ("synthetic_train", synth_model)):
-            pred = model.predict(Xr_test)
-            result[f"{name}_r2"] = float(r2_score(yr_test, pred))
-            result[f"{name}_mae"] = float(mean_absolute_error(yr_test, pred))
-        return result
-
-    result["n_classes"] = int(y_real.nunique())
-    real_m = _classification_metrics(real_model, Xr_test, yr_test)
-    if y_synth.nunique() < 2:
-        synth_m = _constant_classification_metrics(y_synth.iloc[0], yr_test)
-        result["synthetic_single_class"] = True
-    else:
-        synth_model = make_pipeline().fit(X_synth, y_synth)
-        synth_m = _classification_metrics(synth_model, Xr_test, yr_test)
-        result["synthetic_single_class"] = False
-
-    for key in ("accuracy", "f1", "ece"):
-        result[f"real_train_{key}"] = real_m[key]
-        result[f"synthetic_train_{key}"] = synth_m[key]
+    with limit_threads_for_small_data(len(X_real) + len(X_synth)):
+        for name, estimator in _make_models(task, seed).items():
+            trtr = score(fit(estimator, Xr_train, yr_train), Xr_test, yr_test)
+            if synthetic_single_class:
+                # A model trained on one class can only predict that class.
+                tstr = _constant_classification_metrics(y_synth.iloc[0], yr_test)
+            else:
+                tstr = score(fit(clone(estimator), X_synth, y_synth), Xr_test, yr_test)
+            result["models"][name] = {
+                "trtr": trtr,
+                "tstr": tstr,
+                "tstr_vs_trtr": _comparison(task, trtr, tstr),
+            }
     return result

@@ -159,19 +159,20 @@ def generate_trust_report(
 
 
 def _utility_warnings(utility: dict, th: Thresholds) -> list[str]:
-    """Warnings derived from the utility block (provisional thresholds)."""
+    """Warnings derived from the utility block (provisional thresholds), one per model."""
     out: list[str] = []
     if utility["status"] != "ok":
         return out
-    if utility["task"] == "regression":
-        if utility["synthetic_train_r2"] < utility["real_train_r2"] - th.utility_r2_drop:
-            out.append("Significant downstream utility degradation")
-        return out
     if utility.get("synthetic_single_class"):
         out.append("Synthetic labels contain a single class")
-    acc_floor = th.utility_accuracy_ratio * utility["real_train_accuracy"]
-    if utility["synthetic_train_accuracy"] < acc_floor:
-        out.append("Significant downstream utility degradation")
-    if utility["synthetic_train_ece"] > utility["real_train_ece"] + th.utility_ece_increase:
-        out.append("Synthetic data significantly degrades probability calibration")
+    for name, m in utility["models"].items():
+        cmp_ = m["tstr_vs_trtr"]
+        if utility["task"] == "regression":
+            if cmp_["r2_drop"] > th.utility_r2_drop:
+                out.append(f"Significant downstream utility degradation ({name})")
+            continue
+        if m["tstr"]["accuracy"] < th.utility_accuracy_ratio * m["trtr"]["accuracy"]:
+            out.append(f"Significant downstream utility degradation ({name})")
+        if cmp_["ece_increase"] > th.utility_ece_increase:
+            out.append(f"Synthetic data significantly degrades probability calibration ({name})")
     return out
