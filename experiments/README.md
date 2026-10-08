@@ -9,7 +9,7 @@ python -m experiments.benchmark                          # 40 seeds, several min
 python -m experiments.calibrate --update-readme README.md
 ```
 
-`benchmark` downloads the three datasets from OpenML into `experiments/cache/` (git-ignored), runs every generator on every dataset and seed and writes the raw statistics to `results/runs.jsonl` plus the environment to `results/meta.json`. `calibrate` reads those, learns the thresholds, writes `app/calibrated_thresholds.json` and the evaluation files in `results/`, and pastes the detection matrix into the main README between its `detection-matrix` markers. Only the date inside the calibrated file and the run times change when the commands are repeated on the same machine and package versions.
+`benchmark` downloads the three datasets from OpenML into `experiments/cache/` (git-ignored), runs every generator on every dataset and seed and writes the raw statistics to `results/runs.jsonl` plus the environment to `results/meta.json`. `calibrate` reads those, learns the thresholds, writes `app/calibrated_thresholds.json` and the evaluation files in `results/` and pastes the detection matrix into the main README between its `detection-matrix` markers. Only the date inside the calibrated file and the run times change when the commands are repeated on the same machine and package versions.
 
 ## Files
 
