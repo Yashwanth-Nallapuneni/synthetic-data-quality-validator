@@ -13,13 +13,21 @@ score used here is a higher-is-better score (verified on hand-built cases, see
 results/sdmetrics_directions.json), so every check warns when the score is BELOW its
 threshold; the code supports both directions. The thresholds are then applied to seeds 20 to 39.
 
-Four views are compared:
+Six views are compared:
 - ours: the intended-warning mapping of calibrate.INTENDED
 - sdmetrics_strict: the analogous SDMetrics check for the same failure mode (SD_INTENDED).
   SDMetrics has no diversity or collapse check, so mode_collapse has no intended check and
   can never count as detected in this view
 - sdmetrics_lenient: any of the individual SDMetrics checks fires
 - sdmetrics_overall: only the single QualityReport overall score, one calibrated threshold
+- sdmetrics_worst_strict and sdmetrics_worst_lenient: added after the first results were read,
+  following a fairness review. Our marginal checks use the worst column while Column Shapes and
+  Column Pair Trends are averages, so these views also use the smallest per-column and per-pair
+  score of the QualityReport (sdmetrics_worst.jsonl, written by
+  `compare_sdmetrics --worst-only`). Calibrated with the same protocol. The strict view maps
+  category_oversample to the worst column shape and column_shuffle to the worst pair or
+  LogisticDetection; the lenient view counts every individual check, new ones included. The
+  original strict and lenient views are unchanged. This can only help SDMetrics.
 """
 
 import argparse
@@ -58,6 +66,13 @@ SD_CHECKS: dict[str, str] = {
     "new_row_synthesis": BELOW,
     "efficacy_ratio": BELOW,
 }
+# Worst-column statistics (see compare_sdmetrics.worst_scores), also higher-is-better.
+WORST_CHECKS: dict[str, str] = {
+    "shape_min": BELOW,
+    "shape_min_numeric": BELOW,
+    "shape_min_categorical": BELOW,
+    "pair_min": BELOW,
+}
 OVERALL = "quality_score"
 OVERALL_DIRECTION = BELOW
 
@@ -72,8 +87,21 @@ SD_INTENDED: dict[str, tuple[str, ...]] = {
     "category_oversample": ("column_shapes",),
     "label_shuffle": ("efficacy_ratio",),
 }
+# The worst-column variant of the strict mapping: only the two marginal/dependence modes change.
+SD_INTENDED_WORST: dict[str, tuple[str, ...]] = {
+    **SD_INTENDED,
+    "column_shuffle": ("pair_min", "logistic_detection"),
+    "category_oversample": ("shape_min",),
+}
 MODES = (*HEADLINE_MODES, "near_copy_5pct")
-VIEWS = ("ours", "sdmetrics_strict", "sdmetrics_lenient", "sdmetrics_overall")
+VIEWS = (
+    "ours",
+    "sdmetrics_strict",
+    "sdmetrics_worst_strict",
+    "sdmetrics_lenient",
+    "sdmetrics_worst_lenient",
+    "sdmetrics_overall",
+)
 ORDER = (NULL, "gaussian_copula", *BROKEN)
 
 
@@ -119,7 +147,7 @@ def calibrate_sdmetrics(
         raise ValueError("calibration may only use heldout_real runs")
     if any(r["seed"] >= N_CAL_SEEDS for r in null_runs):
         raise ValueError(f"calibration may only use seeds below {N_CAL_SEEDS}")
-    directions = {**SD_CHECKS, OVERALL: OVERALL_DIRECTION}
+    directions = {**SD_CHECKS, **WORST_CHECKS, OVERALL: OVERALL_DIRECTION}
     thresholds: dict[str, float] = {}
     details: dict[str, Any] = {}
     for name, direction in directions.items():
@@ -135,10 +163,16 @@ def calibrate_sdmetrics(
     return thresholds, details
 
 
-def sd_fired(run: dict[str, Any], thresholds: dict[str, float]) -> set[str]:
-    """Individual SDMetrics checks that warn on a run (the overall score is separate)."""
+def sd_fired(
+    run: dict[str, Any], thresholds: dict[str, float], checks: dict[str, str] | None = None
+) -> set[str]:
+    """Individual SDMetrics checks that warn on a run (the overall score is separate).
+
+    Defaults to the original six checks; pass {**SD_CHECKS, **WORST_CHECKS} for the worst-column
+    variant.
+    """
     out = set()
-    for name, direction in SD_CHECKS.items():
+    for name, direction in (SD_CHECKS if checks is None else checks).items():
         if name in thresholds and fires(run["metrics"].get(name), thresholds[name], direction):
             out.add(name)
     return out
@@ -148,6 +182,38 @@ def overall_fired(run: dict[str, Any], thresholds: dict[str, float]) -> bool:
     return OVERALL in thresholds and fires(
         run["metrics"].get(OVERALL), thresholds[OVERALL], OVERALL_DIRECTION
     )
+
+
+def merge_worst(
+    sd: list[dict[str, Any]], worst: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], int]:
+    """Add the worst-column statistics to the SDMetrics records, leaving existing values alone.
+
+    Returns the merged records and the number of runs where the re-computed averaged Column
+    Shapes or Column Pair Trends differ from the stored ones by more than 1e-9 (expected 0).
+    Runs with no worst-column record keep no new statistics, so the new checks never fire there.
+    """
+
+    def key(r: dict[str, Any]) -> tuple[str, int, str]:
+        return (r["dataset"], r["seed"], r["generator"])
+
+    by_key = {key(r): r for r in worst}
+    mismatches = 0
+    out = []
+    for r in sd:
+        w = by_key.get(key(r))
+        if w is None:
+            out.append(r)
+            continue
+        for name in ("column_shapes", "column_pair_trends"):
+            a, b = r["metrics"].get(name), w["metrics"].get(name)
+            if (a is None) != (b is None) or (
+                a is not None and b is not None and abs(a - b) > 1e-9
+            ):
+                mismatches += 1
+        new = {k: v for k, v in w["metrics"].items() if k in WORST_CHECKS}
+        out.append({**r, "metrics": {**r["metrics"], **new}})
+    return out, mismatches
 
 
 def join_runs(ours: list[dict[str, Any]], sd: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -174,7 +240,9 @@ def evaluate(
         gen = r["generator"]
         ours = fired_codes(r["ours"], ours_th)
         sd = sd_fired(r, sd_th)
+        sd_w = sd_fired(r, sd_th, {**SD_CHECKS, **WORST_CHECKS})
         o_int, s_int = INTENDED.get(gen), SD_INTENDED.get(gen)
+        w_int = SD_INTENDED_WORST.get(gen)
         rows.append(
             {
                 "dataset": r["dataset"],
@@ -188,12 +256,21 @@ def evaluate(
                     "any": bool(sd),
                     "intended": bool(set(s_int) & sd) if s_int is not None else None,
                 },
+                "sdmetrics_worst_strict": {
+                    "any": bool(sd_w),
+                    "intended": bool(set(w_int) & sd_w) if w_int is not None else None,
+                },
                 "sdmetrics_lenient": {"any": bool(sd), "intended": bool(sd) if o_int else None},
+                "sdmetrics_worst_lenient": {
+                    "any": bool(sd_w),
+                    "intended": bool(sd_w) if o_int else None,
+                },
                 "sdmetrics_overall": {
                     "any": overall_fired(r, sd_th),
                     "intended": overall_fired(r, sd_th) if o_int else None,
                 },
                 "sd_fired": sorted(sd),
+                "sd_fired_with_worst": sorted(sd_w),
             }
         )
     return rows
@@ -279,8 +356,11 @@ def error_summary(sd_runs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def build_comparison(
-    ours_runs: list[dict[str, Any]], sd_runs: list[dict[str, Any]]
+    ours_runs: list[dict[str, Any]],
+    sd_runs: list[dict[str, Any]],
+    worst_runs: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    sd_runs, worst_mismatch = merge_worst(sd_runs, worst_runs or [])
     paired = join_runs(ours_runs, sd_runs)
     cal = [r for r in paired if r["seed"] < N_CAL_SEEDS]
     test = [r for r in paired if r["seed"] >= N_CAL_SEEDS]
@@ -294,7 +374,10 @@ def build_comparison(
     by_ds = {d: rates([r for r in rows if r["dataset"] == d]) for d in datasets}
 
     null_rows = [r for r in rows if r["generator"] == NULL]
-    per_check_fa = {name: sum(name in r["sd_fired"] for r in null_rows) for name in SD_CHECKS}
+    per_check_fa = {
+        name: sum(name in r["sd_fired_with_worst"] for r in null_rows)
+        for name in {**SD_CHECKS, **WORST_CHECKS}
+    }
     per_check_fa[OVERALL] = sum(r["sdmetrics_overall"]["any"] for r in null_rows)
 
     return {
@@ -309,7 +392,11 @@ def build_comparison(
             "detection_rule": f"intended check fires in at least {DETECTION_TARGET:.0%} of runs",
             "ours_intended": {m: list(INTENDED[m]) for m in MODES},
             "sdmetrics_strict_intended": {m: list(SD_INTENDED[m]) for m in MODES},
+            "sdmetrics_worst_strict_intended": {m: list(SD_INTENDED_WORST[m]) for m in MODES},
             "sdmetrics_lenient": "any individual SDMetrics check fires",
+            "sdmetrics_worst_lenient": (
+                "any individual SDMetrics check fires, worst-column checks included"
+            ),
             "sdmetrics_overall": f"only the QualityReport overall score ({OVERALL})",
         },
         "sdmetrics_thresholds": sd_th,
@@ -326,6 +413,8 @@ def build_comparison(
         },
         "runtime": runtime_summary(paired),
         "sdmetrics_errors": error_summary(sd_runs),
+        "n_runs_with_worst_scores": len(worst_runs or []),
+        "worst_recompute_mismatches": worst_mismatch,
         "ours_stats_mismatch_runs": sum(
             1 for r in paired if r.get("ours_rerun") and not r["ours_rerun"]["stats_match"]
         ),
@@ -337,7 +426,9 @@ def build_comparison(
 VIEW_TITLES = {
     "ours": "Ours (intended warning)",
     "sdmetrics_strict": "SDMetrics strict",
+    "sdmetrics_worst_strict": "SDMetrics strict (worst column/pair)",
     "sdmetrics_lenient": "SDMetrics lenient",
+    "sdmetrics_worst_lenient": "SDMetrics lenient (worst column/pair)",
     "sdmetrics_overall": "SDMetrics overall score only",
 }
 
@@ -452,8 +543,13 @@ def comparison_markdown(cmp: dict[str, Any]) -> str:
         f"least {DETECTION_TARGET:.0%} of test runs. Cells are the fraction of test runs in "
         "which the intended check fired. SDMetrics strict uses the analogous SDMetrics check "
         "and has none for `mode_collapse` (SDMetrics has no diversity check). SDMetrics lenient "
-        "counts any individual SDMetrics check. The last column uses only the overall Quality "
-        "score.",
+        "counts any individual SDMetrics check. The two worst column/pair columns were added after "
+        "the first results were read, following a fairness review, and can only favour SDMetrics: "
+        "they use the smallest per-column Column Shapes score and the smallest per-pair Column "
+        "Pair Trends score instead of the averages (`category_oversample` is mapped to the worst "
+        "column shape, `column_shuffle` to the worst pair or LogisticDetection; the lenient "
+        "variant counts every individual check including these). The last column uses only the "
+        "overall Quality score.",
         "",
         main_table_markdown(cmp),
         "",
@@ -472,6 +568,8 @@ def comparison_markdown(cmp: dict[str, Any]) -> str:
         err_line,
         f"Runs where our re-run did not reproduce the stored statistics: "
         f"{cmp['ours_stats_mismatch_runs']}.",
+        f"Worst-column pass: {cmp['n_runs_with_worst_scores']} runs, re-computed averaged "
+        f"scores differing from the stored ones: {cmp['worst_recompute_mismatches']}.",
         "",
     ]
     return "\n".join(parts)
@@ -517,8 +615,11 @@ def main(argv: list[str] | None = None) -> int:
         help="document whose sdmetrics-full markers are replaced with the whole comparison.md",
     )
     args = ap.parse_args(argv)
+    worst_path = args.results / "sdmetrics_worst.jsonl"
     cmp = build_comparison(
-        load_jsonl(args.results / "runs.jsonl"), load_jsonl(args.results / "sdmetrics_runs.jsonl")
+        load_jsonl(args.results / "runs.jsonl"),
+        load_jsonl(args.results / "sdmetrics_runs.jsonl"),
+        load_jsonl(worst_path) if worst_path.exists() else None,
     )
     md = comparison_markdown(cmp)
     (args.results / "comparison.json").write_text(json.dumps(cmp, indent=2) + "\n")

@@ -2,6 +2,7 @@
 
     pip install -e ".[compare]"
     python -m experiments.compare_sdmetrics [--seeds 40] [--jobs 8] [--out experiments/results]
+    python -m experiments.compare_sdmetrics --worst-only   # added later, see below
     python -m experiments.compare_report
 
 For every (dataset, seed, generator) of experiments.benchmark the same T, H_gold, H_base and
@@ -28,6 +29,13 @@ typing of app.metrics.utility.detect_task. Our own validator is re-run on each r
 and its recorded statistics are compared with runs.jsonl so the comparison provably used the
 same inputs. Each metric is timed and any exception is recorded in `errors` (the value is then
 null); no run is dropped. All SDMetrics scores are higher-is-better (see verify_directions).
+
+Worst-column pass (--worst-only). Added AFTER the comparison was first read, because a fairness
+review pointed out that our marginal checks use the worst column while the averaged Column
+Shapes and Column Pair Trends dilute single-column damage. It re-runs only QualityReport on the
+same regenerated frames and records the smallest per-column score (all, numeric KSComplement,
+categorical TVComplement) and the smallest per-pair score, in sdmetrics_worst.jsonl. It can
+only help the baseline and leaves every existing result untouched.
 """
 
 import argparse
@@ -64,6 +72,7 @@ from experiments.generators import GENERATORS, HELDOUT
 RESULTS = Path(__file__).resolve().parent / "results"
 SDMETRICS_VERSION = "0.32.0"
 STATS_TOLERANCE = 1e-9
+WORST_FILE = "sdmetrics_worst.jsonl"
 
 
 def build_metadata(real: pd.DataFrame, label: str) -> dict[str, Any]:
@@ -125,6 +134,73 @@ def mask_unseen_categories(
         n += int(unseen.sum())
         out.loc[unseen, col] = seen.mode().iloc[0]
     return out, n
+
+
+NUMERIC_SHAPE_METRIC = "KSComplement"
+CATEGORICAL_SHAPE_METRIC = "TVComplement"
+WORST_KEYS = ("shape_min", "shape_min_numeric", "shape_min_categorical", "pair_min")
+
+
+def _min_score(scores: pd.Series) -> float | None:
+    """Smallest finite score, or None when there is none (unscorable pairs are NaN)."""
+    vals = pd.to_numeric(scores, errors="coerce").to_numpy(dtype=float)
+    vals = vals[np.isfinite(vals)]
+    return float(vals.min()) if vals.size else None
+
+
+def worst_scores(shapes: pd.DataFrame, pairs: pd.DataFrame) -> dict[str, float | None]:
+    """Worst single column and worst single pair from the QualityReport detail tables.
+
+    `shapes` is get_details("Column Shapes") (columns Column, Metric, Score) and `pairs` is
+    get_details("Column Pair Trends"). The averaged properties hide one badly damaged column;
+    these are the per-column analogue of our max KS and worst category shift. shape_min is the
+    smallest score of all columns, shape_min_numeric the smallest KSComplement and
+    shape_min_categorical the smallest TVComplement. pair_min is the smallest pair score;
+    pairs SDMetrics could not score (NaN) are skipped, as its own average skips them. A group
+    with no scored member is None.
+    """
+    metric = shapes["Metric"]
+    return {
+        "shape_min": _min_score(shapes["Score"]),
+        "shape_min_numeric": _min_score(shapes.loc[metric == NUMERIC_SHAPE_METRIC, "Score"]),
+        "shape_min_categorical": _min_score(
+            shapes.loc[metric == CATEGORICAL_SHAPE_METRIC, "Score"]
+        ),
+        "pair_min": _min_score(pairs["Score"]),
+    }
+
+
+def score_worst(train: pd.DataFrame, synth: pd.DataFrame, label: str, seed: int) -> dict[str, Any]:
+    """Worst-column and worst-pair QualityReport scores of one synthetic table.
+
+    Same metadata, prepared frames, raw (unmasked) tables and seeding as score_run's quality
+    call, so the averaged Column Shapes and Column Pair Trends are recorded again as a check.
+    """
+    from sdmetrics.reports.single_table import QualityReport
+
+    md = build_metadata(train, label)
+    real, fake = (prepare_frame(d, md) for d in (train, synth))
+    values: dict[str, float | None] = {}
+    runtimes: dict[str, float] = {}
+    errors: dict[str, str] = {}
+
+    def quality() -> float:
+        report = QualityReport()
+        report.generate(real, fake, md, verbose=False)
+        props = report.get_properties().set_index("Property")["Score"]
+        values["column_shapes"] = float(props["Column Shapes"])
+        values["column_pair_trends"] = float(props["Column Pair Trends"])
+        values.update(
+            worst_scores(
+                report.get_details("Column Shapes"), report.get_details("Column Pair Trends")
+            )
+        )
+        return float(report.get_score())
+
+    _timed("quality_score", quality, seed, values, runtimes, errors)
+    if errors:
+        values.update(dict.fromkeys(("column_shapes", "column_pair_trends", *WORST_KEYS)))
+    return {"metrics": values, "runtime_s": runtimes, "errors": errors}
 
 
 def efficacy_class(labels: pd.Series) -> str | None:
@@ -295,6 +371,23 @@ def run_unit(
     return out
 
 
+def run_worst_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict[str, Any]]:
+    """The worst-column QualityReport pass for all generators of one (dataset, seed)."""
+    warnings.filterwarnings("ignore")
+    train, gold, _ = split_three(df, ds.label, seed, ds.max_rows)
+    out = []
+    with threadpool_limits(limits=1):
+        for name in (HELDOUT, *GENERATORS):
+            rec: dict[str, Any] = {"dataset": ds.name, "seed": seed, "generator": name}
+            try:
+                synth = build_synth(name, train, gold, ds.label, seed)
+                rec.update(score_worst(train, synth, ds.label, seed))
+            except Exception as e:  # recorded, never dropped
+                rec.update(metrics={}, runtime_s={}, errors={"run": f"{type(e).__name__}: {e}"})
+            out.append(rec)
+    return out
+
+
 def verify_directions() -> dict[str, Any]:
     """Score hand-built cases to check which direction is good for every metric.
 
@@ -380,6 +473,24 @@ def sdmetrics_versions() -> dict[str, str]:
     return out
 
 
+def main_worst(args: argparse.Namespace) -> int:
+    chosen = [d for d in DATASETS if d.name in args.datasets]
+    loaded = {d.name: load_dataset(d)[0] for d in chosen}
+    args.out.mkdir(parents=True, exist_ok=True)
+    t0 = time.perf_counter()
+    units = [(d, s) for d in chosen for s in range(args.seeds)]
+    results = joblib.Parallel(n_jobs=args.jobs, verbose=5)(
+        joblib.delayed(run_worst_unit)(loaded[d.name], d, s) for d, s in units
+    )
+    runs = [r for unit in results for r in unit]
+    with open(args.out / WORST_FILE, "w") as f:
+        for r in runs:
+            f.write(json.dumps(r, allow_nan=False) + "\n")
+    n_err = sum(bool(r["errors"]) for r in runs)
+    print(f"{len(runs)} worst-column runs, {n_err} with errors, {time.perf_counter() - t0:.0f}s")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--seeds", type=int, default=SEEDS, help="seeds 0..N-1 (default 40)")
@@ -387,10 +498,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=RESULTS)
     ap.add_argument("--datasets", nargs="*", default=[d.name for d in DATASETS])
     ap.add_argument(
+        "--worst-only",
+        action="store_true",
+        help="only re-run QualityReport and write the worst-column scores to "
+        "sdmetrics_worst.jsonl (existing result files are not touched)",
+    )
+    ap.add_argument(
         "--no-rerun-ours", action="store_true", help="skip re-running our validator (no timing)"
     )
     args = ap.parse_args(argv)
 
+    if args.worst_only:
+        return main_worst(args)
     directions = verify_directions()
     chosen = [d for d in DATASETS if d.name in args.datasets]
     loaded = {d.name: load_dataset(d)[0] for d in chosen}

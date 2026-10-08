@@ -1,5 +1,7 @@
 """Calibration, direction and metadata logic of the SDMetrics comparison (no SDMetrics needed)."""
 
+import sys
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -289,6 +291,24 @@ def fake_sdmetrics(monkeypatch):
         def get_score(self):
             return 0.85
 
+        def get_details(self, prop):
+            if prop == "Column Shapes":
+                return pd.DataFrame(
+                    {
+                        "Column": ["a", "b", "c"],
+                        "Metric": ["KSComplement", "TVComplement", "TVComplement"],
+                        "Score": [0.95, 0.4, 0.9],
+                    }
+                )
+            return pd.DataFrame(
+                {
+                    "Column 1": ["a", "a"],
+                    "Column 2": ["b", "c"],
+                    "Metric": ["CorrelationSimilarity", "ContingencySimilarity"],
+                    "Score": [np.nan, 0.7],
+                }
+            )
+
     def metric(value):
         class M:
             @staticmethod
@@ -382,3 +402,137 @@ def test_main_writes_runs_meta_and_directions(fake_sdmetrics, monkeypatch, tmp_p
     assert "ours_rerun" not in json.loads(
         (out / "sdmetrics_runs.jsonl").read_text().splitlines()[0]
     )
+
+
+# Worst-column statistics ------------------------------------------------------------------
+
+
+def test_worst_scores_split_by_metric_and_skip_unscored_pairs():
+    shapes = pd.DataFrame(
+        {
+            "Column": ["a", "b", "c", "d"],
+            "Metric": ["KSComplement", "KSComplement", "TVComplement", "TVComplement"],
+            "Score": [0.9, 0.8, 0.95, 0.6],
+        }
+    )
+    pairs = pd.DataFrame({"Score": [np.nan, 0.7, 0.9]})
+    assert cs.worst_scores(shapes, pairs) == {
+        "shape_min": 0.6,
+        "shape_min_numeric": 0.8,
+        "shape_min_categorical": 0.6,
+        "pair_min": 0.7,
+    }
+
+
+def test_worst_scores_none_when_a_group_has_no_scored_member():
+    shapes = pd.DataFrame({"Column": ["a"], "Metric": ["KSComplement"], "Score": [0.9]})
+    out = cs.worst_scores(shapes, pd.DataFrame({"Score": [np.nan, np.nan]}))
+    assert out["shape_min_categorical"] is None and out["pair_min"] is None
+    assert out["shape_min_numeric"] == 0.9
+    assert cs._min_score(pd.Series([], dtype=float)) is None
+
+
+def test_score_worst_records_minima_and_matches_averages(fake_sdmetrics):
+    df = make_dataset(200, 1)
+    res = cs.score_worst(df.iloc[:100].reset_index(drop=True), df.iloc[100:150], "label", 0)
+    m = res["metrics"]
+    assert m["column_shapes"] == 0.9 and m["column_pair_trends"] == 0.8
+    assert m["shape_min"] == 0.4 and m["shape_min_numeric"] == 0.95
+    assert m["shape_min_categorical"] == 0.4 and m["pair_min"] == 0.7
+    assert not res["errors"] and set(cs.WORST_KEYS) <= set(m)
+
+
+def test_score_worst_records_a_quality_error_as_missing_values(fake_sdmetrics, monkeypatch):
+    def boom(self, *a, **k):
+        raise ValueError("boom")
+
+    monkeypatch.setattr(
+        sys.modules["sdmetrics.reports.single_table"].QualityReport, "generate", boom
+    )
+    df = make_dataset(200, 1)
+    res = cs.score_worst(df.iloc[:100].reset_index(drop=True), df.iloc[100:150], "label", 0)
+    assert "boom" in res["errors"]["quality_score"]
+    assert all(res["metrics"][k] is None for k in cs.WORST_KEYS)
+
+
+def test_main_worst_only_writes_a_sidecar_and_leaves_existing_files(
+    fake_sdmetrics, monkeypatch, tmp_path
+):
+    import json
+
+    from experiments.benchmark import Dataset
+
+    ds = Dataset("toy", 0, "label")
+    df = make_dataset(400, 5)
+    monkeypatch.setattr(cs, "DATASETS", (ds,))
+    monkeypatch.setattr(cs, "load_dataset", lambda d: (df, {}))
+    (tmp_path / "sdmetrics_runs.jsonl").write_text("keep\n")
+    assert cs.main(["--worst-only", "--seeds", "1", "--jobs", "1", "--out", str(tmp_path)]) == 0
+    rows = [json.loads(x) for x in (tmp_path / cs.WORST_FILE).read_text().splitlines()]
+    assert len(rows) == 9 and all(r["metrics"]["pair_min"] == 0.7 for r in rows)
+    assert (tmp_path / "sdmetrics_runs.jsonl").read_text() == "keep\n"
+
+
+def test_run_worst_unit_records_a_failure_outside_the_metric(monkeypatch):
+    from experiments.benchmark import Dataset
+
+    monkeypatch.setattr(cs, "build_synth", lambda *a: 1 / 0)
+    rows = cs.run_worst_unit(make_dataset(400, 5), Dataset("toy", 0, "label"), 0)
+    assert len(rows) == 9 and "ZeroDivisionError" in rows[0]["errors"]["run"]
+
+
+def _worst_records(oversample_min=0.1):
+    ours, sd = _records()
+    worst = []
+    for r in sd:
+        g = r["generator"]
+        w = {k: r[k] for k in ("dataset", "seed", "generator")}
+        w["metrics"] = {
+            "column_shapes": r["metrics"]["column_shapes"],
+            "column_pair_trends": r["metrics"]["column_pair_trends"],
+            "shape_min": oversample_min if g == "category_oversample" else 0.9,
+            "shape_min_numeric": 0.9,
+            "shape_min_categorical": 0.9,
+            "pair_min": 0.1 if g == "column_shuffle" else 0.8,
+        }
+        worst.append(w)
+    return ours, sd, worst
+
+
+def test_merge_worst_adds_fields_and_counts_recompute_mismatches():
+    _, sd, worst = _worst_records()
+    merged, bad = cr.merge_worst(sd, worst)
+    assert bad == 0 and merged[0]["metrics"]["pair_min"] == 0.8
+    assert merged[0]["metrics"]["column_shapes"] == sd[0]["metrics"]["column_shapes"]
+    assert "pair_min" not in sd[0]["metrics"]  # inputs are not modified
+    worst[0]["metrics"]["column_shapes"] += 0.1
+    worst[1]["metrics"]["column_pair_trends"] = None
+    assert cr.merge_worst(sd, worst)[1] == 2
+    assert cr.merge_worst(sd, [])[0] == sd  # no sidecar: nothing is added
+
+
+def test_worst_variant_detects_what_the_averages_miss():
+    ours, sd, worst = _worst_records()
+    out = cr.build_comparison(ours, sd, worst)
+    head = out["headline"]
+    assert not head["sdmetrics_strict"]["modes"]["column_shuffle"]["detected"]
+    assert head["sdmetrics_worst_strict"]["modes"]["column_shuffle"]["detected"]
+    assert head["sdmetrics_worst_strict"]["modes"]["category_oversample"]["detected"]
+    assert not head["sdmetrics_worst_strict"]["modes"]["mode_collapse"]["detected"]
+    assert head["sdmetrics_worst_lenient"]["modes"]["mode_collapse"]["detected"] is False
+    # the original strict and lenient views do not see the new statistics
+    assert not head["sdmetrics_lenient"]["modes"]["column_shuffle"]["detected"]
+    assert head["sdmetrics_worst_strict"]["heldout_real_false_alarm"]["k"] == 0
+    assert out["worst_recompute_mismatches"] == 0
+    assert out["sdmetrics_thresholds"]["pair_min"] == pytest.approx(0.8 - 0.08)
+    assert "SDMetrics strict (worst column/pair)" in cr.comparison_markdown(out)
+
+
+def test_worst_mapping_changes_only_two_modes_and_uses_known_checks():
+    changed = {m for m in cr.SD_INTENDED if cr.SD_INTENDED[m] != cr.SD_INTENDED_WORST[m]}
+    assert changed == {"column_shuffle", "category_oversample"}
+    assert cr.SD_INTENDED_WORST["mode_collapse"] == ()
+    assert all(
+        set(v) <= set(cr.SD_CHECKS) | set(cr.WORST_CHECKS) for v in cr.SD_INTENDED_WORST.values()
+    )
+    assert set(cr.WORST_CHECKS.values()) == {cr.BELOW}
