@@ -1,10 +1,12 @@
 import pandas as pd
 
+from app.errors import InputError
 from app.metrics.categorical_fidelity import compute_categorical_fidelity
 from app.metrics.diversity import compute_diversity
 from app.metrics.fidelity import compute_fidelity
 from app.metrics.privacy import compute_privacy_risk
 from app.metrics.utility import compute_utility
+from app.thresholds import Thresholds
 from app.utils.column_types import detect_column_types
 from app.utils.preprocessing import coerce_features, to_jsonable
 
@@ -14,14 +16,19 @@ def generate_trust_report(
     synth_df: pd.DataFrame,
     label_column: str,
     seed: int = 42,
+    thresholds: Thresholds | None = None,
 ):
     """
     Generates a comprehensive trust report for synthetic data.
+
+    Raises InputError for problems with the supplied data. Warning thresholds come from
+    `thresholds` (provisional defaults when omitted, see app/thresholds.py).
     """
+    th = thresholds or Thresholds()
 
     for name, df in (("real", real_df), ("synthetic", synth_df)):
         if label_column not in df.columns:
-            raise ValueError(f"Label column '{label_column}' not found in {name} data")
+            raise InputError(f"Label column '{label_column}' not found in {name} data")
 
     real_features = real_df.drop(columns=[label_column])
     synth_features = synth_df.drop(columns=[label_column])
@@ -29,7 +36,7 @@ def generate_trust_report(
     only_real = sorted(set(real_features.columns) - set(synth_features.columns))
     only_synth = sorted(set(synth_features.columns) - set(real_features.columns))
     if only_real or only_synth:
-        raise ValueError(
+        raise InputError(
             "Real and synthetic data must have the same columns. "
             f"Only in real: {only_real}. Only in synthetic: {only_synth}."
         )
@@ -96,7 +103,7 @@ def generate_trust_report(
     # 3. Privacy
 
     report["privacy"] = compute_privacy_risk(
-        real_features, synth_features, numeric_cols, categorical_cols, seed=seed
+        real_features, synth_features, numeric_cols, categorical_cols, seed=seed, thresholds=th
     )
 
     # 4. Diversity
@@ -117,12 +124,12 @@ def generate_trust_report(
     var_ratio = report["diversity"]["mean_variance_ratio"]
     if var_ratio is None:
         pass
-    elif var_ratio < 0.5:
+    elif var_ratio < th.variance_ratio_low:
         warnings.append("Synthetic data shows signs of mode collapse")
-    elif var_ratio > 1.5:
+    elif var_ratio > th.variance_ratio_high:
         warnings.append("Synthetic data shows excessive variance / instability")
 
-    warnings.extend(_utility_warnings(report["utility"]))
+    warnings.extend(_utility_warnings(report["utility"], th))
 
     # 6. Categorical distortion warnings (B2.4)
 
@@ -133,16 +140,16 @@ def generate_trust_report(
         per_feature = cat_fidelity["per_feature"]
 
         # Overall categorical shift
-        if summary["mean_l1"] > 0.3:
+        if summary["mean_l1"] > th.categorical_mean_l1:
             warnings.append("Significant categorical distribution shift detected")
 
         # High JS divergence
-        if summary["mean_js"] > 0.2:
+        if summary["mean_js"] > th.categorical_mean_js:
             warnings.append("Categorical distributions differ substantially (high JS divergence)")
 
         # Severe single-category distortion
         for col, stats in per_feature.items():
-            if abs(stats["worst_shift"]) > 0.25:
+            if abs(stats["worst_shift"]) > th.categorical_worst_shift:
                 warnings.append(
                     f"Severe distortion in category '{stats['worst_category']}' of feature '{col}'"
                 )
@@ -151,19 +158,20 @@ def generate_trust_report(
     return to_jsonable(report)
 
 
-def _utility_warnings(utility: dict) -> list[str]:
-    """Warnings derived from the utility block (thresholds are not yet calibrated)."""
+def _utility_warnings(utility: dict, th: Thresholds) -> list[str]:
+    """Warnings derived from the utility block (provisional thresholds)."""
     out: list[str] = []
     if utility["status"] != "ok":
         return out
     if utility["task"] == "regression":
-        if utility["synthetic_train_r2"] < utility["real_train_r2"] - 0.2:
+        if utility["synthetic_train_r2"] < utility["real_train_r2"] - th.utility_r2_drop:
             out.append("Significant downstream utility degradation")
         return out
     if utility.get("synthetic_single_class"):
         out.append("Synthetic labels contain a single class")
-    if utility["synthetic_train_accuracy"] < 0.8 * utility["real_train_accuracy"]:
+    acc_floor = th.utility_accuracy_ratio * utility["real_train_accuracy"]
+    if utility["synthetic_train_accuracy"] < acc_floor:
         out.append("Significant downstream utility degradation")
-    if utility["synthetic_train_ece"] > utility["real_train_ece"] + 0.1:
+    if utility["synthetic_train_ece"] > utility["real_train_ece"] + th.utility_ece_increase:
         out.append("Synthetic data significantly degrades probability calibration")
     return out

@@ -105,3 +105,16 @@ def test_tiny_sample_returns_200_with_insufficient_status():
     r = post(real, synth)
     assert r.status_code == 200
     assert r.json()["report"]["utility"]["status"] == "insufficient_data"
+
+
+def test_internal_value_error_is_500_not_400(frames, monkeypatch):
+    """Only InputError is a client error; a stray ValueError is an internal bug."""
+    import app.api as api_module
+
+    def boom(*args, **kwargs):
+        raise ValueError("internal bug")
+
+    monkeypatch.setattr(api_module, "generate_trust_report", boom)
+    r = post(csv_bytes(frames[0]), csv_bytes(frames[1]))
+    assert r.status_code == 500
+    assert "internal bug" not in r.json()["detail"]

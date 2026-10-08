@@ -6,6 +6,7 @@ import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
+from app.errors import InputError
 from app.report import generate_trust_report
 
 logger = logging.getLogger("synthetic_validator")
@@ -77,29 +78,11 @@ async def validate_synthetic_data(
     real_df = await _read_csv(real, "real")
     synth_df = await _read_csv(synth, "synthetic")
 
-    for name, df in (("real", real_df), ("synthetic", synth_df)):
-        if label_column not in df.columns:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Label column '{label_column}' not found in {name} data",
-            )
-
-    only_real = sorted(set(real_df.columns) - set(synth_df.columns))
-    only_synth = sorted(set(synth_df.columns) - set(real_df.columns))
-    if only_real or only_synth:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Real and synthetic data must have the same columns. "
-                f"Only in real: {only_real}. Only in synthetic: {only_synth}."
-            ),
-        )
-
     try:
         report = await run_in_threadpool(
             generate_trust_report, real_df, synth_df, label_column=label_column
         )
-    except ValueError as e:
+    except InputError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         logger.exception("Unexpected error while generating the report")

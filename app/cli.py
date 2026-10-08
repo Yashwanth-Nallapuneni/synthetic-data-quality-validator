@@ -12,6 +12,7 @@ import sys
 
 import pandas as pd
 
+from app.errors import InputError
 from app.report import generate_trust_report
 
 EXIT_CLEAN = 0
@@ -43,7 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeDecodeError) as e:
         print(f"error: could not read input: {e}", file=sys.stderr)
         return EXIT_INPUT_ERROR
-    except ValueError as e:
+    except InputError as e:
         print(f"error: {e}", file=sys.stderr)
         return EXIT_INPUT_ERROR
 

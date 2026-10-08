@@ -5,14 +5,12 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 
+from app.thresholds import Thresholds
 from app.utils.preprocessing import build_preprocessor, coerce_features
 
 MIN_REAL_ROWS = 20
 HOLDOUT_FRACTION = 0.5
 BASELINE_QUANTILE = 0.05
-HIGH_SHARE = 0.15
-MEDIUM_SHARE = 0.10
-EXACT_MATCH_MARGIN = 0.05
 EXACT_TOL = 1e-9
 
 
@@ -37,6 +35,7 @@ def compute_privacy_risk(
     numeric_cols: list[str],
     categorical_cols: list[str],
     seed: int = 42,
+    thresholds: Thresholds | None = None,
 ) -> dict:
     """Distance-to-closest-record (DCR) privacy check with a holdout baseline.
 
@@ -53,6 +52,7 @@ def compute_privacy_risk(
     all real rows still gets flagged when it copies train rows, but the holdout half
     dilutes the signal. The risk thresholds are not yet calibrated.
     """
+    th = thresholds or Thresholds()
     features = list(numeric_cols) + list(categorical_cols)
     if not features:
         return {
@@ -87,9 +87,11 @@ def compute_privacy_risk(
     exact_rate = float(np.mean(_nn_distances(all_x, synth_x) <= EXACT_TOL))
     holdout_exact_rate = float(np.mean(holdout_dcr <= EXACT_TOL))
 
-    if share_closer > HIGH_SHARE or exact_rate > holdout_exact_rate + EXACT_MATCH_MARGIN:
+    if share_closer > th.privacy_high_share or (
+        exact_rate > holdout_exact_rate + th.privacy_exact_match_margin
+    ):
         level = "HIGH"
-    elif share_closer > MEDIUM_SHARE:
+    elif share_closer > th.privacy_medium_share:
         level = "MEDIUM"
     else:
         level = "LOW"
