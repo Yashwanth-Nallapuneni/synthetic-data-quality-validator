@@ -1,0 +1,1894 @@
+{
+  "protocol": {
+    "calibration_seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "test_seeds": [
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39
+    ],
+    "n_test_runs_per_generator": 60,
+    "rule": "threshold = null extreme -/+ max(0.1 * |extreme|, 0.01) from heldout_real runs of the calibration seeds, pooled over datasets",
+    "detection_rule": "intended check fires in at least 90% of runs",
+    "ours_intended": {
+      "exact_copy": [
+        "privacy_memorisation"
+      ],
+      "near_copy": [
+        "privacy_memorisation"
+      ],
+      "column_shuffle": [
+        "dependence_shift",
+        "detectability_high_auc"
+      ],
+      "mode_collapse": [
+        "diversity_mode_collapse",
+        "diversity_low_coverage"
+      ],
+      "category_oversample": [
+        "categorical_mean_l1",
+        "categorical_mean_js",
+        "categorical_worst_shift"
+      ],
+      "label_shuffle": [
+        "utility_degradation"
+      ],
+      "near_copy_5pct": [
+        "privacy_memorisation"
+      ]
+    },
+    "sdmetrics_strict_intended": {
+      "exact_copy": [
+        "dcr_overfitting",
+        "new_row_synthesis"
+      ],
+      "near_copy": [
+        "dcr_overfitting",
+        "new_row_synthesis"
+      ],
+      "column_shuffle": [
+        "column_pair_trends",
+        "logistic_detection"
+      ],
+      "mode_collapse": [],
+      "category_oversample": [
+        "column_shapes"
+      ],
+      "label_shuffle": [
+        "efficacy_ratio"
+      ],
+      "near_copy_5pct": [
+        "dcr_overfitting",
+        "new_row_synthesis"
+      ]
+    },
+    "sdmetrics_lenient": "any individual SDMetrics check fires",
+    "sdmetrics_overall": "only the QualityReport overall score (quality_score)"
+  },
+  "sdmetrics_thresholds": {
+    "column_shapes": 0.854314,
+    "column_pair_trends": 0.765958,
+    "logistic_detection": 0.75212,
+    "dcr_overfitting": 0.4536,
+    "new_row_synthesis": 0.858424,
+    "efficacy_ratio": 0.729804,
+    "quality_score": 0.813179
+  },
+  "sdmetrics_threshold_details": {
+    "column_shapes": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.9492380952380951,
+      "threshold": 0.854314,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    },
+    "column_pair_trends": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.8510640281449969,
+      "threshold": 0.765958,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    },
+    "logistic_detection": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.8356883479169029,
+      "threshold": 0.75212,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    },
+    "dcr_overfitting": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.504,
+      "threshold": 0.4536,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    },
+    "new_row_synthesis": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.9538043478260869,
+      "threshold": 0.858424,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    },
+    "efficacy_ratio": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.8108938266616453,
+      "threshold": 0.729804,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    },
+    "quality_score": {
+      "direction": "below",
+      "n_null_values": 60,
+      "null_extreme": 0.9035320140724985,
+      "threshold": 0.813179,
+      "max_per_check_false_alarm_rate_before_margin": 0.01639344262295082,
+      "n_null_runs_without_value": 0
+    }
+  },
+  "table": {
+    "heldout_real": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.06666666666666667,
+        "n_any_warning": 4
+      },
+      "sdmetrics_strict": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      },
+      "sdmetrics_overall": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    },
+    "gaussian_copula": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.25,
+        "n_any_warning": 15
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.25,
+        "n_any_warning": 15
+      },
+      "sdmetrics_overall": {
+        "intended_fired": null,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    },
+    "exact_copy": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    },
+    "near_copy": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    },
+    "near_copy_5pct": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    },
+    "column_shuffle": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 0.55,
+        "n_intended_fired": 33,
+        "any_warning": 0.7833333333333333,
+        "n_any_warning": 47
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 0.7833333333333333,
+        "n_intended_fired": 47,
+        "any_warning": 0.7833333333333333,
+        "n_any_warning": 47
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    },
+    "mode_collapse": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      }
+    },
+    "category_oversample": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 1.0,
+        "n_intended_fired": 60,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 0.6666666666666666,
+        "n_any_warning": 40
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 0.6666666666666666,
+        "n_intended_fired": 40,
+        "any_warning": 0.6666666666666666,
+        "n_any_warning": 40
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 0.16666666666666666,
+        "n_intended_fired": 10,
+        "any_warning": 0.16666666666666666,
+        "n_any_warning": 10
+      }
+    },
+    "label_shuffle": {
+      "n_runs": 60,
+      "ours": {
+        "intended_fired": 0.9166666666666666,
+        "n_intended_fired": 55,
+        "any_warning": 1.0,
+        "n_any_warning": 60
+      },
+      "sdmetrics_strict": {
+        "intended_fired": 0.38333333333333336,
+        "n_intended_fired": 23,
+        "any_warning": 0.43333333333333335,
+        "n_any_warning": 26
+      },
+      "sdmetrics_lenient": {
+        "intended_fired": 0.43333333333333335,
+        "n_intended_fired": 26,
+        "any_warning": 0.43333333333333335,
+        "n_any_warning": 26
+      },
+      "sdmetrics_overall": {
+        "intended_fired": 0.0,
+        "n_intended_fired": 0,
+        "any_warning": 0.0,
+        "n_any_warning": 0
+      }
+    }
+  },
+  "headline": {
+    "ours": {
+      "n_detected": 6,
+      "n_modes": 6,
+      "modes": {
+        "exact_copy": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "near_copy": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "column_shuffle": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "mode_collapse": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "category_oversample": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "label_shuffle": {
+          "rate": 0.9166666666666666,
+          "detected": true
+        },
+        "near_copy_5pct": {
+          "rate": 1.0,
+          "detected": true
+        }
+      },
+      "heldout_real_false_alarm": {
+        "k": 4,
+        "n": 60,
+        "rate": 0.06666666666666667
+      },
+      "gaussian_copula_any_warning": {
+        "k": 60,
+        "n": 60,
+        "rate": 1.0
+      }
+    },
+    "sdmetrics_strict": {
+      "n_detected": 2,
+      "n_modes": 6,
+      "modes": {
+        "exact_copy": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "near_copy": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "column_shuffle": {
+          "rate": 0.55,
+          "detected": false
+        },
+        "mode_collapse": {
+          "rate": 0.0,
+          "detected": false
+        },
+        "category_oversample": {
+          "rate": 0.0,
+          "detected": false
+        },
+        "label_shuffle": {
+          "rate": 0.38333333333333336,
+          "detected": false
+        },
+        "near_copy_5pct": {
+          "rate": 1.0,
+          "detected": true
+        }
+      },
+      "heldout_real_false_alarm": {
+        "k": 0,
+        "n": 60,
+        "rate": 0.0
+      },
+      "gaussian_copula_any_warning": {
+        "k": 15,
+        "n": 60,
+        "rate": 0.25
+      }
+    },
+    "sdmetrics_lenient": {
+      "n_detected": 3,
+      "n_modes": 6,
+      "modes": {
+        "exact_copy": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "near_copy": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "column_shuffle": {
+          "rate": 0.7833333333333333,
+          "detected": false
+        },
+        "mode_collapse": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "category_oversample": {
+          "rate": 0.6666666666666666,
+          "detected": false
+        },
+        "label_shuffle": {
+          "rate": 0.43333333333333335,
+          "detected": false
+        },
+        "near_copy_5pct": {
+          "rate": 1.0,
+          "detected": true
+        }
+      },
+      "heldout_real_false_alarm": {
+        "k": 0,
+        "n": 60,
+        "rate": 0.0
+      },
+      "gaussian_copula_any_warning": {
+        "k": 15,
+        "n": 60,
+        "rate": 0.25
+      }
+    },
+    "sdmetrics_overall": {
+      "n_detected": 1,
+      "n_modes": 6,
+      "modes": {
+        "exact_copy": {
+          "rate": 0.0,
+          "detected": false
+        },
+        "near_copy": {
+          "rate": 0.0,
+          "detected": false
+        },
+        "column_shuffle": {
+          "rate": 0.0,
+          "detected": false
+        },
+        "mode_collapse": {
+          "rate": 1.0,
+          "detected": true
+        },
+        "category_oversample": {
+          "rate": 0.16666666666666666,
+          "detected": false
+        },
+        "label_shuffle": {
+          "rate": 0.0,
+          "detected": false
+        },
+        "near_copy_5pct": {
+          "rate": 0.0,
+          "detected": false
+        }
+      },
+      "heldout_real_false_alarm": {
+        "k": 0,
+        "n": 60,
+        "rate": 0.0
+      },
+      "gaussian_copula_any_warning": {
+        "k": 0,
+        "n": 60,
+        "rate": 0.0
+      }
+    }
+  },
+  "per_dataset": {
+    "adult": {
+      "heldout_real": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_strict": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_overall": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "gaussian_copula": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.3,
+          "n_any_warning": 6
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.3,
+          "n_any_warning": 6
+        },
+        "sdmetrics_overall": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "exact_copy": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "near_copy": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "near_copy_5pct": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "column_shuffle": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "mode_collapse": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        }
+      },
+      "category_oversample": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "label_shuffle": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.4,
+          "n_intended_fired": 8,
+          "any_warning": 0.45,
+          "n_any_warning": 9
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 0.45,
+          "n_intended_fired": 9,
+          "any_warning": 0.45,
+          "n_any_warning": 9
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      }
+    },
+    "cmc": {
+      "heldout_real": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.1,
+          "n_any_warning": 2
+        },
+        "sdmetrics_strict": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_overall": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "gaussian_copula": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.3,
+          "n_any_warning": 6
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.3,
+          "n_any_warning": 6
+        },
+        "sdmetrics_overall": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "exact_copy": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "near_copy": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "near_copy_5pct": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "column_shuffle": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.1,
+          "n_intended_fired": 2,
+          "any_warning": 0.55,
+          "n_any_warning": 11
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 0.55,
+          "n_intended_fired": 11,
+          "any_warning": 0.55,
+          "n_any_warning": 11
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "mode_collapse": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        }
+      },
+      "category_oversample": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.5,
+          "n_intended_fired": 10,
+          "any_warning": 0.5,
+          "n_any_warning": 10
+        }
+      },
+      "label_shuffle": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 0.9,
+          "n_intended_fired": 18,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.45,
+          "n_intended_fired": 9,
+          "any_warning": 0.45,
+          "n_any_warning": 9
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 0.45,
+          "n_intended_fired": 9,
+          "any_warning": 0.45,
+          "n_any_warning": 9
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      }
+    },
+    "german_credit": {
+      "heldout_real": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.1,
+          "n_any_warning": 2
+        },
+        "sdmetrics_strict": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        },
+        "sdmetrics_overall": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "gaussian_copula": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.15,
+          "n_any_warning": 3
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.15,
+          "n_any_warning": 3
+        },
+        "sdmetrics_overall": {
+          "intended_fired": null,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "exact_copy": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "near_copy": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "near_copy_5pct": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "column_shuffle": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.55,
+          "n_intended_fired": 11,
+          "any_warning": 0.8,
+          "n_any_warning": 16
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 0.8,
+          "n_intended_fired": 16,
+          "any_warning": 0.8,
+          "n_any_warning": 16
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "mode_collapse": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        }
+      },
+      "category_oversample": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 1.0,
+          "n_intended_fired": 20,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      },
+      "label_shuffle": {
+        "n_runs": 20,
+        "ours": {
+          "intended_fired": 0.85,
+          "n_intended_fired": 17,
+          "any_warning": 1.0,
+          "n_any_warning": 20
+        },
+        "sdmetrics_strict": {
+          "intended_fired": 0.3,
+          "n_intended_fired": 6,
+          "any_warning": 0.4,
+          "n_any_warning": 8
+        },
+        "sdmetrics_lenient": {
+          "intended_fired": 0.4,
+          "n_intended_fired": 8,
+          "any_warning": 0.4,
+          "n_any_warning": 8
+        },
+        "sdmetrics_overall": {
+          "intended_fired": 0.0,
+          "n_intended_fired": 0,
+          "any_warning": 0.0,
+          "n_any_warning": 0
+        }
+      }
+    }
+  },
+  "per_dataset_headline": {
+    "adult": {
+      "ours": {
+        "n_detected": 6,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "label_shuffle": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 20,
+          "n": 20,
+          "rate": 1.0
+        }
+      },
+      "sdmetrics_strict": {
+        "n_detected": 3,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "mode_collapse": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "category_oversample": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.4,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 6,
+          "n": 20,
+          "rate": 0.3
+        }
+      },
+      "sdmetrics_lenient": {
+        "n_detected": 4,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.45,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 6,
+          "n": 20,
+          "rate": 0.3
+        }
+      },
+      "sdmetrics_overall": {
+        "n_detected": 1,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "near_copy": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "column_shuffle": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 0.0,
+            "detected": false
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        }
+      }
+    },
+    "cmc": {
+      "ours": {
+        "n_detected": 6,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "label_shuffle": {
+            "rate": 0.9,
+            "detected": true
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 2,
+          "n": 20,
+          "rate": 0.1
+        },
+        "gaussian_copula_any_warning": {
+          "k": 20,
+          "n": 20,
+          "rate": 1.0
+        }
+      },
+      "sdmetrics_strict": {
+        "n_detected": 2,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 0.1,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "category_oversample": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.45,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 6,
+          "n": 20,
+          "rate": 0.3
+        }
+      },
+      "sdmetrics_lenient": {
+        "n_detected": 4,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 0.55,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "label_shuffle": {
+            "rate": 0.45,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 6,
+          "n": 20,
+          "rate": 0.3
+        }
+      },
+      "sdmetrics_overall": {
+        "n_detected": 1,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "near_copy": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "column_shuffle": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 0.5,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 0.0,
+            "detected": false
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        }
+      }
+    },
+    "german_credit": {
+      "ours": {
+        "n_detected": 5,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "label_shuffle": {
+            "rate": 0.85,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 2,
+          "n": 20,
+          "rate": 0.1
+        },
+        "gaussian_copula_any_warning": {
+          "k": 20,
+          "n": 20,
+          "rate": 1.0
+        }
+      },
+      "sdmetrics_strict": {
+        "n_detected": 2,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 0.55,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "category_oversample": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.3,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 3,
+          "n": 20,
+          "rate": 0.15
+        }
+      },
+      "sdmetrics_lenient": {
+        "n_detected": 4,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "near_copy": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "column_shuffle": {
+            "rate": 0.8,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "label_shuffle": {
+            "rate": 0.4,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 1.0,
+            "detected": true
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 3,
+          "n": 20,
+          "rate": 0.15
+        }
+      },
+      "sdmetrics_overall": {
+        "n_detected": 1,
+        "n_modes": 6,
+        "modes": {
+          "exact_copy": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "near_copy": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "column_shuffle": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "mode_collapse": {
+            "rate": 1.0,
+            "detected": true
+          },
+          "category_oversample": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "label_shuffle": {
+            "rate": 0.0,
+            "detected": false
+          },
+          "near_copy_5pct": {
+            "rate": 0.0,
+            "detected": false
+          }
+        },
+        "heldout_real_false_alarm": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        },
+        "gaussian_copula_any_warning": {
+          "k": 0,
+          "n": 20,
+          "rate": 0.0
+        }
+      }
+    }
+  },
+  "sdmetrics_heldout_real_false_alarms_per_check": {
+    "k": {
+      "column_shapes": 0,
+      "column_pair_trends": 0,
+      "logistic_detection": 0,
+      "dcr_overfitting": 0,
+      "new_row_synthesis": 0,
+      "efficacy_ratio": 0,
+      "quality_score": 0
+    },
+    "n": 60
+  },
+  "runtime": {
+    "n_runs": 1080,
+    "ours_mean_s_per_run": 1.9062898148148149,
+    "sdmetrics_mean_s_per_run": 11.804947222222223,
+    "sdmetrics_mean_s_per_metric": {
+      "quality_score": 0.2053324074074074,
+      "logistic_detection": 0.08845185185185185,
+      "dcr_overfitting": 8.271315740740741,
+      "new_row_synthesis": 3.1448453703703705,
+      "efficacy_ratio": 0.09500185185185185
+    }
+  },
+  "sdmetrics_errors": {},
+  "ours_stats_mismatch_runs": 0
+}

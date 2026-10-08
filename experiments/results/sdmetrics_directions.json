@@ -1,0 +1,69 @@
+{
+  "scores": {
+    "fresh_sample": {
+      "column_shapes": 0.9379166666666667,
+      "column_pair_trends": 0.752621500926359,
+      "quality_score": 0.8452690837965129,
+      "logistic_detection": 0.9775666666666667,
+      "dcr_overfitting": 0.45333333333333337,
+      "new_row_synthesis": 0.9966666666666667,
+      "efficacy_tstr": 0.7292418772563177,
+      "efficacy_trtr": 0.7323943661971831,
+      "efficacy_ratio": 0.9956956400999722
+    },
+    "exact_copy_of_train": {
+      "column_shapes": 0.9654166666666667,
+      "column_pair_trends": 0.9518423820373417,
+      "quality_score": 0.9586295243520042,
+      "logistic_detection": 0.9636833333333333,
+      "dcr_overfitting": 0.0,
+      "new_row_synthesis": 0.0,
+      "efficacy_tstr": 0.7335640138408305,
+      "efficacy_trtr": 0.7323943661971831,
+      "efficacy_ratio": 1.001597018898057
+    },
+    "all_columns_permuted": {
+      "column_shapes": 0.9379166666666667,
+      "column_pair_trends": 0.5750735426489811,
+      "quality_score": 0.7564951046578239,
+      "logistic_detection": 0.9666333333333333,
+      "dcr_overfitting": 0.3999999999999999,
+      "new_row_synthesis": 1.0,
+      "efficacy_tstr": 0.610062893081761,
+      "efficacy_trtr": 0.7323943661971831,
+      "efficacy_ratio": 0.832970488630866
+    },
+    "label_permuted": {
+      "column_shapes": 0.9379166666666667,
+      "column_pair_trends": 0.7331770564819146,
+      "quality_score": 0.8355468615742907,
+      "logistic_detection": 0.9719,
+      "dcr_overfitting": 0.48,
+      "new_row_synthesis": 0.9966666666666667,
+      "efficacy_tstr": 0.5631067961165048,
+      "efficacy_trtr": 0.7323943661971831,
+      "efficacy_ratio": 0.7688573562359969
+    },
+    "shifted_columns": {
+      "column_shapes": 0.6283333333333334,
+      "column_pair_trends": 0.752621500926359,
+      "quality_score": 0.6904774171298462,
+      "logistic_detection": 0.0,
+      "dcr_overfitting": 0.026666666666666616,
+      "new_row_synthesis": 1.0,
+      "efficacy_tstr": 0.34831460674157305,
+      "efficacy_trtr": 0.7323943661971831,
+      "efficacy_ratio": 0.47558340535868626
+    }
+  },
+  "assumptions_verified": [
+    "dcr_overfitting: exact copy scores far lower than fresh (low = memorised)",
+    "new_row_synthesis: exact copy scores 0, fresh near 1 (low = memorised)",
+    "logistic_detection: shifted sample scores far lower than fresh (low = detectable)",
+    "column_pair_trends: permuted columns score lower than fresh (low = worse)",
+    "column_shapes: shifted sample scores lower than fresh (low = worse)",
+    "quality_score: shifted sample scores lower than fresh (low = worse)",
+    "efficacy_ratio: permuted label scores lower than fresh (low = worse)"
+  ],
+  "note": "every SDMetrics score used is higher = better, so each check warns when LOW"
+}

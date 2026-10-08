@@ -1,0 +1,21 @@
+{
+  "command": "python -m experiments.compare_sdmetrics --jobs 3",
+  "versions": {
+    "python": "3.13.2",
+    "platform": "macOS-26.6.1-arm64-arm-64bit-Mach-O",
+    "numpy": "2.3.5",
+    "pandas": "2.3.3",
+    "scipy": "1.16.3",
+    "scikit_learn": "1.8.0",
+    "joblib": "1.5.3",
+    "sdmetrics": "0.32.0",
+    "copulas": "0.14.1"
+  },
+  "n_runs": 1080,
+  "n_runs_with_metric_errors": 0,
+  "n_ours_stats_mismatch": 0,
+  "wall_clock_seconds": 4958.4,
+  "jobs": 3,
+  "efficacy_models": "BinaryLogisticRegression (2 classes), MulticlassDecisionTreeClassifier",
+  "efficacy_score": "SDMetrics default (F1 binary, macro F1 multiclass), TSTR / TRTR ratio"
+}
