@@ -1,85 +1,188 @@
+"""Downstream utility: train on synthetic vs train on real, test on held-out real."""
+
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, r2_score
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+
+from app.utils.column_types import detect_column_types
+from app.utils.preprocessing import (
+    as_categorical,
+    as_numeric,
+    build_preprocessor,
+    coerce_features,
+)
+
+MIN_ROWS = 10
+TEST_SIZE = 0.3
+REGRESSION_MIN_UNIQUE = 20
 
 
-def expected_calibration_error(y_true, y_prob, n_bins=10):
+def expected_calibration_error(confidences, correct, n_bins: int = 10) -> float:
+    """Top-label Expected Calibration Error.
+
+    confidences: the predicted probability of the predicted class (max over classes).
+    correct: 1 if the predicted class equals the true class, else 0.
+    ECE = sum over bins of |accuracy(bin) - mean confidence(bin)| * share of samples in bin.
+    Works for binary and multiclass models.
     """
-    Computes Expected Calibration Error (ECE).
-    Standard definition: sum_k |acc(k) - conf(k)| * P(k)
-    """
-    y_true = np.asarray(y_true)
-    y_prob = np.asarray(y_prob)
-
-    bins = np.linspace(0.0, 1.0, n_bins + 1)
-    bin_ids = np.digitize(y_prob, bins) - 1
-
+    confidences = np.asarray(confidences, dtype=float)
+    correct = np.asarray(correct, dtype=float)
+    if confidences.size == 0:
+        return 0.0
+    edges = np.linspace(0.0, 1.0, n_bins + 1)
+    bin_ids = np.clip(np.digitize(confidences, edges) - 1, 0, n_bins - 1)
     ece = 0.0
     for i in range(n_bins):
         mask = bin_ids == i
-        if np.any(mask):
-            acc = np.mean(y_true[mask])      # fraction of positives
-            conf = np.mean(y_prob[mask])     # mean confidence
-            ece += np.abs(acc - conf) * np.mean(mask)
-
+        if mask.any():
+            ece += abs(correct[mask].mean() - confidences[mask].mean()) * mask.mean()
     return float(ece)
 
 
-def compute_utility(real_df: pd.DataFrame, synth_df: pd.DataFrame):
+def detect_task(label: pd.Series) -> str:
+    """Return "regression" or "classification" for a label series.
+
+    Uses the shared column-type detector. A numeric label is regression only if it has
+    many unique values or is not integer-coded; small integer-coded labels such as 0/1
+    are class labels.
     """
-    Compares downstream ML utility of real vs synthetic data.
-    Assumes:
-    - Last column is the label
-    - Binary classification
-    """
+    clean = label.dropna()
+    types = detect_column_types(clean.to_frame("y"))
+    if types["numeric"]:
+        values = as_numeric(clean)
+        integer_like = bool(np.allclose(values, np.round(values)))
+        if values.nunique() > REGRESSION_MIN_UNIQUE or not integer_like:
+            return "regression"
+    return "classification"
 
-    # Split features / labels
-    # Separate features / labels
-    X_real_full = real_df.iloc[:, :-1]
-    y_real = real_df.iloc[:, -1]
 
-    X_synth_full = synth_df.iloc[:, :-1]
-    y_synth = synth_df.iloc[:, -1]
+def _insufficient(reason: str, task: str | None = None) -> dict:
+    return {"status": "insufficient_data", "reason": reason, "task": task}
 
-    # Keep only numeric features
-    numeric_cols = X_real_full.select_dtypes(include="number").columns
 
-    X_real = X_real_full[numeric_cols]
-    X_synth = X_synth_full[numeric_cols]
+def _can_stratify(y: pd.Series, test_size: float) -> bool:
+    counts = y.value_counts()
+    n_classes = len(counts)
+    n_test = int(np.ceil(test_size * len(y)))
+    n_train = len(y) - n_test
+    return bool(counts.min() >= 2 and n_test >= n_classes and n_train >= n_classes)
 
-    # Train / test split on REAL data
-    Xr_train, Xr_test, yr_train, yr_test = train_test_split(
-        X_real,
-        y_real,
-        test_size=0.3,
-        random_state=42,
-        stratify=y_real,
-    )
 
-    # Train on REAL data
-    real_model = LogisticRegression(max_iter=1000)
-    real_model.fit(Xr_train, yr_train)
-    real_preds = real_model.predict(Xr_test)
-    real_probs = real_model.predict_proba(Xr_test)[:, 1]
-
-    # Train on SYNTHETIC data, test on REAL test set
-    synth_model = LogisticRegression(max_iter=1000)
-    synth_model.fit(X_synth, y_synth)
-    synth_preds = synth_model.predict(Xr_test)
-    synth_probs = synth_model.predict_proba(Xr_test)[:, 1]
-
+def _classification_metrics(model, X_test, y_test) -> dict:
+    proba = model.predict_proba(X_test)
+    classes = model.classes_
+    pred = classes[np.argmax(proba, axis=1)]
+    conf = proba.max(axis=1)
+    correct = pred == np.asarray(y_test)
     return {
-        "real_train_accuracy": accuracy_score(yr_test, real_preds),
-        "synthetic_train_accuracy": accuracy_score(yr_test, synth_preds),
-        "real_train_f1": f1_score(yr_test, real_preds, average="weighted"),
-        "synthetic_train_f1": f1_score(yr_test, synth_preds, average="weighted"),
-        "real_train_ece": expected_calibration_error(
-            yr_test.values, real_probs
-        ),
-        "synthetic_train_ece": expected_calibration_error(
-            yr_test.values, synth_probs
-        ),
+        "accuracy": float(accuracy_score(y_test, pred)),
+        "f1": float(f1_score(y_test, pred, average="weighted", zero_division=0)),
+        "ece": expected_calibration_error(conf, correct),
     }
 
+
+def _constant_classification_metrics(label, y_test) -> dict:
+    """Metrics for a degenerate model that always predicts one class with probability 1."""
+    pred = np.full(len(y_test), label, dtype=object)
+    correct = pred == np.asarray(y_test)
+    return {
+        "accuracy": float(accuracy_score(y_test, pred)),
+        "f1": float(f1_score(y_test, pred, average="weighted", zero_division=0)),
+        "ece": expected_calibration_error(np.ones(len(y_test)), correct),
+    }
+
+
+def compute_utility(
+    real_df: pd.DataFrame,
+    synth_df: pd.DataFrame,
+    label_column: str,
+    numeric_cols: list[str] | None = None,
+    categorical_cols: list[str] | None = None,
+    seed: int = 42,
+) -> dict:
+    """Compare ML utility of real-trained vs synthetic-trained models on held-out real data.
+
+    Features are the given numeric and categorical columns (default: detected from the
+    real features). Numeric columns are standardised and categorical columns one-hot
+    encoded inside an sklearn Pipeline. The label may be any column.
+
+    Classification reports accuracy, weighted F1 and top-label ECE. Regression reports
+    R2 and MAE. When the data are too small the result has status "insufficient_data"
+    and a reason instead of metrics.
+    """
+    if label_column not in real_df.columns or label_column not in synth_df.columns:
+        raise ValueError(f"Label column '{label_column}' must exist in both datasets")
+
+    if numeric_cols is None or categorical_cols is None:
+        types = detect_column_types(real_df.drop(columns=[label_column]))
+        numeric_cols, categorical_cols = types["numeric"], types["categorical"]
+    feature_cols = list(numeric_cols) + list(categorical_cols)
+    if not feature_cols:
+        return _insufficient("No usable feature columns")
+
+    real_label = real_df[label_column]
+    real_label = real_label[real_label.notna()]
+    if len(real_label) < MIN_ROWS:
+        return _insufficient(f"Need at least {MIN_ROWS} labelled real rows, got {len(real_label)}")
+
+    task = detect_task(real_label)
+
+    def prepare(df: pd.DataFrame):
+        df = df[df[label_column].notna()]
+        X = coerce_features(df, list(numeric_cols), list(categorical_cols))
+        y = as_numeric(df[label_column]) if task == "regression" else as_categorical(
+            df[label_column]
+        )
+        return X, y
+
+    X_real, y_real = prepare(real_df)
+    X_synth, y_synth = prepare(synth_df)
+
+    if task == "classification" and y_real.nunique() < 2:
+        return _insufficient("Real label has a single class", task)
+    if len(y_synth) == 0:
+        return _insufficient("Synthetic data has no labelled rows", task)
+
+    stratify = y_real if task == "classification" and _can_stratify(y_real, TEST_SIZE) else None
+    Xr_train, Xr_test, yr_train, yr_test = train_test_split(
+        X_real, y_real, test_size=TEST_SIZE, random_state=seed, stratify=stratify
+    )
+    if task == "classification" and yr_train.nunique() < 2:
+        return _insufficient("Real training split has a single class", task)
+
+    def make_pipeline() -> Pipeline:
+        pre = build_preprocessor(list(numeric_cols), list(categorical_cols))
+        if task == "regression":
+            model = Ridge(alpha=1.0)
+        else:
+            model = LogisticRegression(max_iter=1000, random_state=seed)
+        return Pipeline([("pre", pre), ("model", model)])
+
+    result: dict = {"status": "ok", "reason": None, "task": task}
+    real_model = make_pipeline().fit(Xr_train, yr_train)
+
+    if task == "regression":
+        synth_model = make_pipeline().fit(X_synth, y_synth)
+        for name, model in (("real_train", real_model), ("synthetic_train", synth_model)):
+            pred = model.predict(Xr_test)
+            result[f"{name}_r2"] = float(r2_score(yr_test, pred))
+            result[f"{name}_mae"] = float(mean_absolute_error(yr_test, pred))
+        return result
+
+    result["n_classes"] = int(y_real.nunique())
+    real_m = _classification_metrics(real_model, Xr_test, yr_test)
+    if y_synth.nunique() < 2:
+        synth_m = _constant_classification_metrics(y_synth.iloc[0], yr_test)
+        result["synthetic_single_class"] = True
+    else:
+        synth_model = make_pipeline().fit(X_synth, y_synth)
+        synth_m = _classification_metrics(synth_model, Xr_test, yr_test)
+        result["synthetic_single_class"] = False
+
+    for key in ("accuracy", "f1", "ece"):
+        result[f"real_train_{key}"] = real_m[key]
+        result[f"synthetic_train_{key}"] = synth_m[key]
+    return result
