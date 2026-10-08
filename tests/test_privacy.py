@@ -85,3 +85,56 @@ def test_deterministic_with_seed():
     assert compute_privacy_risk(real, synth, COLS, [], seed=3) == compute_privacy_risk(
         real, synth, COLS, [], seed=3
     )
+
+
+def _near_copy(real, seed=1):
+    rng = np.random.default_rng(seed)
+    synth = real.copy()
+    synth["income"] += rng.normal(0, 0.5, len(synth))
+    synth["age"] += rng.normal(0, 0.05, len(synth))
+    return synth
+
+
+def test_holdout_mode_is_sharper_than_split_for_generator_trained_on_all_real():
+    real = _real(600, seed=1)
+    holdout = _real(600, seed=2)
+    synth = _near_copy(real)  # the generator memorised ALL of the real rows
+    split = compute_privacy_risk(real, synth, COLS, [])
+    held = compute_privacy_risk(real, synth, COLS, [], holdout_df=holdout)
+    assert split["mode"] == "split_real_50_50" and held["mode"] == "provided_holdout"
+    assert held["n_train"] == 600 and held["n_holdout"] == 600
+    assert held["share_closer_than_holdout_p5"] > 0.95
+    assert split["share_closer_than_holdout_p5"] < held["share_closer_than_holdout_p5"] - 0.2
+    assert held["privacy_risk_level"] == "HIGH"
+
+
+@pytest.mark.parametrize("seed", range(3))
+def test_holdout_mode_fresh_sample_is_low(seed):
+    real, holdout, synth = _real(500, 10 + seed), _real(500, 20 + seed), _real(500, 30 + seed)
+    p = compute_privacy_risk(real, synth, COLS, [], seed=seed, holdout_df=holdout)
+    assert p["privacy_risk_level"] == "LOW"
+    assert p["share_closer_than_holdout_p5"] < 0.1
+
+
+def test_holdout_mode_exact_copy_reports_all_four_quantities():
+    real, holdout = _real(), _real(500, seed=2)
+    p = compute_privacy_risk(real, real.copy(), COLS, [], holdout_df=holdout)
+    assert p["exact_match_rate"] == pytest.approx(1.0)
+    assert p["synthetic_dcr"]["median"] == 0.0
+    assert p["holdout_dcr"]["median"] > 0.0
+    assert p["share_closer_than_holdout_p5"] == pytest.approx(1.0)
+
+
+def test_holdout_too_small_is_insufficient():
+    p = compute_privacy_risk(_real(), _real(500, 1), COLS, [], holdout_df=_real(5, 2))
+    assert p["status"] == "insufficient_data"
+    assert "holdout" in p["reason"]
+
+
+def test_query_rows_are_capped_and_recorded():
+    real, synth, holdout = _real(300), _real(300, 1), _real(300, 2)
+    p = compute_privacy_risk(real, synth, COLS, [], holdout_df=holdout, max_query_rows=100)
+    assert p["subsampled"] is True
+    assert p["n_synthetic_queried"] == 100 and p["n_holdout_queried"] == 100
+    assert p == compute_privacy_risk(real, synth, COLS, [], holdout_df=holdout, max_query_rows=100)
+    assert compute_privacy_risk(real, synth, COLS, [])["subsampled"] is False
