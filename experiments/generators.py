@@ -1,9 +1,14 @@
 """Synthetic-data generators for the Phase 3 benchmark.
 
 Every generator takes the training frame `train` (features plus the label column), the number
-of rows `n` to produce, the label column name and a seed, and returns a new DataFrame with
-the same columns. All generators draw only from `train` (the held-out real generator,
-`heldout_real`, is handled by the benchmark itself).
+of rows `n` to produce, the label column name, a seed and `fresh` (real rows that are NOT in
+`train`), and returns a new DataFrame with the same columns.
+
+Only the memorisation injections (exact_copy, near_copy) and the copula use `train`. The
+other four injections damage one property of otherwise genuine unseen rows, so they start
+from `fresh` (the benchmark passes H_gold): that way the privacy check has no reason to fire
+on them and "any warning fired" is not inflated by copying training rows. The held-out real
+generator, `heldout_real`, is handled by the benchmark itself.
 
 Good generator:
 - gaussian_copula: a from-scratch Gaussian copula (no SDV).
@@ -11,11 +16,12 @@ Good generator:
 Deliberately broken generators, one failure mode each:
 - exact_copy: rows of train sampled without replacement
 - near_copy: rows of train plus Gaussian noise of `level` times each numeric column's std
-- column_shuffle: a bootstrap of train with every column permuted independently
-- mode_collapse: a bootstrap of 5 random train rows, with 1% numeric jitter
-- category_oversample: bootstrap of train with 50% of one feature's rows set to its rarest
-  category
-- label_shuffle: a bootstrap of train with the label column permuted
+- column_shuffle: a bootstrap of fresh with every column permuted independently
+- mode_collapse: a bootstrap of 5 random fresh rows, with 1% numeric jitter (scaled by the
+  std of the training column)
+- category_oversample: bootstrap of fresh with 50% of one feature's rows set to the rarest
+  category (in train) of the feature with the most categories (in train)
+- label_shuffle: a bootstrap of fresh with the label column permuted
 """
 
 from collections.abc import Callable
@@ -51,29 +57,39 @@ def _jitter(df: pd.DataFrame, numeric: list[str], level: float, rng) -> pd.DataF
     return out
 
 
-def exact_copy(train: pd.DataFrame, n: int, label: str, seed: int) -> pd.DataFrame:
+def _pool(fresh: pd.DataFrame | None) -> pd.DataFrame:
+    if fresh is None:
+        raise ValueError("this generator needs `fresh` rows that are not in the training set")
+    return fresh
+
+
+def exact_copy(train: pd.DataFrame, n: int, label: str, seed: int, fresh=None) -> pd.DataFrame:
     return train.sample(n, replace=False, random_state=seed).reset_index(drop=True)
 
 
-def near_copy(train: pd.DataFrame, n: int, label: str, seed: int, level: float = 0.01):
+def near_copy(train: pd.DataFrame, n: int, label: str, seed: int, fresh=None, level: float = 0.01):
     rng = np.random.default_rng(seed)
     numeric, _ = split_columns(train, label)
     base = train.sample(n, replace=False, random_state=seed).reset_index(drop=True)
     return _jitter(base, numeric, level, rng)
 
 
-def column_shuffle(train: pd.DataFrame, n: int, label: str, seed: int) -> pd.DataFrame:
+def column_shuffle(
+    train: pd.DataFrame, n: int, label: str, seed: int, fresh: pd.DataFrame | None = None
+) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
-    boot = train.sample(n, replace=True, random_state=seed).reset_index(drop=True)
+    boot = _pool(fresh).sample(n, replace=True, random_state=seed).reset_index(drop=True)
     for c in boot.columns:
         boot[c] = boot[c].to_numpy()[rng.permutation(n)]
     return boot
 
 
-def mode_collapse(train: pd.DataFrame, n: int, label: str, seed: int) -> pd.DataFrame:
+def mode_collapse(
+    train: pd.DataFrame, n: int, label: str, seed: int, fresh: pd.DataFrame | None = None
+) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     numeric, _ = split_columns(train, label)
-    centres = train.sample(COLLAPSE_ROWS, replace=False, random_state=seed)
+    centres = _pool(fresh).sample(COLLAPSE_ROWS, replace=False, random_state=seed)
     boot = centres.iloc[rng.integers(0, COLLAPSE_ROWS, n)].reset_index(drop=True)
     # Jitter is scaled by the std of the full training column, not of the 5 rows.
     out = boot.copy()
@@ -98,10 +114,12 @@ def oversample_target(train: pd.DataFrame, label: str) -> tuple[str, object]:
     return col, rarest
 
 
-def category_oversample(train: pd.DataFrame, n: int, label: str, seed: int) -> pd.DataFrame:
+def category_oversample(
+    train: pd.DataFrame, n: int, label: str, seed: int, fresh: pd.DataFrame | None = None
+) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     col, rarest = oversample_target(train, label)
-    boot = train.sample(n, replace=True, random_state=seed).reset_index(drop=True)
+    boot = _pool(fresh).sample(n, replace=True, random_state=seed).reset_index(drop=True)
     pick = rng.choice(n, int(round(OVERSAMPLE_SHARE * n)), replace=False)
     values = boot[col].astype(object).to_numpy().copy()
     values[pick] = rarest
@@ -112,9 +130,11 @@ def category_oversample(train: pd.DataFrame, n: int, label: str, seed: int) -> p
     return boot
 
 
-def label_shuffle(train: pd.DataFrame, n: int, label: str, seed: int) -> pd.DataFrame:
+def label_shuffle(
+    train: pd.DataFrame, n: int, label: str, seed: int, fresh: pd.DataFrame | None = None
+) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
-    boot = train.sample(n, replace=True, random_state=seed).reset_index(drop=True)
+    boot = _pool(fresh).sample(n, replace=True, random_state=seed).reset_index(drop=True)
     boot[label] = boot[label].to_numpy()[rng.permutation(n)]
     return boot
 
@@ -229,11 +249,11 @@ def _nearest_correlation(corr: np.ndarray, eps: float = 1e-6) -> np.ndarray:
     return out / np.outer(d, d)
 
 
-def gaussian_copula(train: pd.DataFrame, n: int, label: str, seed: int) -> pd.DataFrame:
+def gaussian_copula(train: pd.DataFrame, n: int, label: str, seed: int, fresh=None) -> pd.DataFrame:
     return GaussianCopula(label, seed).fit(train).sample(n, seed + 1)
 
 
-GENERATORS: dict[str, Callable[[pd.DataFrame, int, str, int], pd.DataFrame]] = {
+GENERATORS: dict[str, Callable[..., pd.DataFrame]] = {
     "gaussian_copula": gaussian_copula,
     "exact_copy": exact_copy,
     "near_copy": partial(near_copy, level=NEAR_COPY_LEVELS["near_copy"]),

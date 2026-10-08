@@ -49,7 +49,9 @@ def test_reapplying_thresholds_to_recorded_stats_matches_the_report(toy_runs):
     train, gold, base = split_three(df, ds.label, 0, None)
     custom = Thresholds(c2st_auc=0.55, variance_ratio_low=0.9, privacy_high_share=0.3)
     for name in (HELDOUT, "column_shuffle", "exact_copy"):
-        synth = gold if name == HELDOUT else GENERATORS[name](train, len(gold), ds.label, 0)
+        synth = (
+            gold if name == HELDOUT else GENERATORS[name](train, len(gold), ds.label, 0, fresh=gold)
+        )
         for th in (Thresholds(), custom):
             report = generate_trust_report(
                 train, synth, ds.label, seed=0, thresholds=th, holdout_df=base

@@ -7,9 +7,12 @@ For each (dataset, seed) the real data is split into three disjoint parts:
 - H_gold  25%  held-out real rows, used as the "good" generator output (heldout_real)
 - H_base  25%  held-out real rows, passed as `holdout_df` (the privacy baseline)
 
-Every generator makes n_synth = len(H_gold) rows from T only. The splits are stratified by
-the label. The Adult data (48,842 rows) is subsampled to ADULT_ROWS rows per seed before
-splitting to keep the runtime sane; the other datasets are used whole.
+Every generator makes n_synth = len(H_gold) rows. The copula and the two memorisation
+injections (exact_copy, near_copy) use T only; the other four injections start from H_gold
+(real rows not in T) so that the privacy check has no training rows to find in them.
+The splits are stratified by the label. The Adult data (48,842 rows) is subsampled to
+ADULT_ROWS rows per seed before splitting to keep the runtime sane; the other datasets
+are used whole.
 
 For each run the raw statistics every warning uses (app/checks.py) are recorded, so
 thresholds can be recalibrated offline with experiments/calibrate.py. The warning codes
@@ -100,7 +103,9 @@ def run_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict]:
             stats, codes = {}, []
             try:
                 synth = (
-                    gold if name == HELDOUT else GENERATORS[name](train, n_synth, ds.label, seed)
+                    gold
+                    if name == HELDOUT
+                    else GENERATORS[name](train, n_synth, ds.label, seed, fresh=gold)
                 )
                 report = generate_trust_report(
                     train,
