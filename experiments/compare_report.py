@@ -39,6 +39,7 @@ from experiments.calibrate import (
     NULL,
     REL_MARGIN,
     calibrate_thresholds,
+    embed_in_readme,
     fired_codes,
 )
 from experiments.generators import BROKEN
@@ -464,7 +465,7 @@ def comparison_markdown(cmp: dict[str, Any]) -> str:
         "",
         thresholds_markdown(cmp),
         "",
-        "Runtime (all runs, 8 parallel jobs, one thread each):",
+        "Runtime (all runs; both tools timed inside the same parallel job, one thread each):",
         "",
         runtime_markdown(cmp),
         "",
@@ -476,6 +477,23 @@ def comparison_markdown(cmp: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+START_MARK = "<!-- sdmetrics-comparison:start -->"
+END_MARK = "<!-- sdmetrics-comparison:end -->"
+
+
+def readme_markdown(cmp: dict[str, Any]) -> str:
+    """The short block pasted into the README: one sentence of method and the main table."""
+    p = cmp["protocol"]
+    return (
+        f"Test seeds {p['test_seeds'][0]} to {p['test_seeds'][-1]}, "
+        f"{p['n_test_runs_per_generator']} runs per generator. Cells are the fraction of test "
+        'runs in which the intended check fired ("detected" means at least '
+        f"{DETECTION_TARGET:.0%}). Both tools' thresholds come from `heldout_real` seeds "
+        f"{p['calibration_seeds'][0]} to {p['calibration_seeds'][-1]} with the same rule.\n\n"
+        + main_table_markdown(cmp)
+    )
+
+
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     with open(path) as f:
         return [json.loads(line) for line in f if line.strip()]
@@ -484,6 +502,12 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--results", type=Path, default=RESULTS)
+    ap.add_argument(
+        "--update-readme",
+        type=Path,
+        default=None,
+        help="README whose sdmetrics-comparison markers are replaced with the main table",
+    )
     args = ap.parse_args(argv)
     cmp = build_comparison(
         load_jsonl(args.results / "runs.jsonl"), load_jsonl(args.results / "sdmetrics_runs.jsonl")
@@ -491,6 +515,8 @@ def main(argv: list[str] | None = None) -> int:
     md = comparison_markdown(cmp)
     (args.results / "comparison.json").write_text(json.dumps(cmp, indent=2) + "\n")
     (args.results / "comparison.md").write_text(md)
+    if args.update_readme:
+        embed_in_readme(args.update_readme, readme_markdown(cmp), START_MARK, END_MARK)
     print(md)
     return 0
 

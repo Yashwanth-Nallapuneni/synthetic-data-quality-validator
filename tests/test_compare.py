@@ -95,7 +95,7 @@ def _ours_run(gen, seed, dataset="d", **stats):
     return {"dataset": dataset, "seed": seed, "generator": gen, "stats": stats, "error": None}
 
 
-def test_build_comparison_end_to_end_on_synthetic_records():
+def _records():
     ours, sd = [], []
     gens = ["heldout_real", "gaussian_copula", *cr.BROKEN]
     for seed in range(40):
@@ -114,6 +114,11 @@ def test_build_comparison_end_to_end_on_synthetic_records():
             rec = sd_run(g, seed, **m)
             rec["ours_rerun"] = {"runtime_s": 0.5, "stats_match": True}
             sd.append(rec)
+    return ours, sd
+
+
+def test_build_comparison_end_to_end_on_synthetic_records():
+    ours, sd = _records()
     out = cr.build_comparison(ours, sd)
     strict = out["headline"]["sdmetrics_strict"]
     assert strict["modes"]["exact_copy"]["detected"]
@@ -121,7 +126,6 @@ def test_build_comparison_end_to_end_on_synthetic_records():
     assert strict["modes"]["label_shuffle"]["detected"]
     assert not strict["modes"]["mode_collapse"]["detected"]
     assert not strict["modes"]["column_shuffle"]["detected"]
-    assert out["headline"]["sdmetrics_lenient"]["modes"]["mode_collapse"]["rate"] is None or True
     assert out["headline"]["sdmetrics_overall"]["n_detected"] == 0
     assert strict["heldout_real_false_alarm"] == {"k": 0, "n": 20, "rate": 0.0}
     assert out["protocol"]["test_seeds"] == list(range(20, 40))
@@ -244,3 +248,18 @@ def test_mask_unseen_categories_replaces_with_mode_and_skips_target():
     ref_nan = pd.DataFrame({"c": ["a", None], "y": ["p", "q"]})
     out2, n2 = cs.mask_unseen_categories(df, ref_nan, md, skip="y")
     assert n2 == 2 and out2["c"].isna().sum() == 1
+
+
+def test_main_writes_files_and_updates_the_readme(tmp_path):
+    import json
+
+    ours, sd = _records()
+    for name, rows in (("runs.jsonl", ours), ("sdmetrics_runs.jsonl", sd)):
+        (tmp_path / name).write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    readme = tmp_path / "README.md"
+    readme.write_text(f"intro\n{cr.START_MARK}\nSTALE\n{cr.END_MARK}\noutro\n")
+    assert cr.main(["--results", str(tmp_path), "--update-readme", str(readme)]) == 0
+    assert json.loads((tmp_path / "comparison.json").read_text())["headline"]
+    assert "SDMetrics strict" in (tmp_path / "comparison.md").read_text()
+    body = readme.read_text()
+    assert "STALE" not in body and "SDMetrics strict" in body and body.startswith("intro")
