@@ -22,12 +22,20 @@ Upload **real** and **synthetic** tabular datasets to evaluate:
 - Privacy
 - Diversity
 - Calibration
+- Pairwise dependence
+- Detectability (real-vs-synthetic classifier)
 """
 )
 
 # Inputs
 real_file = st.file_uploader("Upload REAL dataset (CSV)", type=["csv"])
 synth_file = st.file_uploader("Upload SYNTHETIC dataset (CSV)", type=["csv"])
+holdout_file = st.file_uploader(
+    "Optional: HOLDOUT real rows the generator never saw (CSV, same columns as the real file)",
+    type=["csv"],
+    help="Used as the privacy baseline. Without it the real data is split 50/50, which "
+    "dilutes the memorisation signal if the generator trained on all of it.",
+)
 label_column = st.text_input("Label column name", value="label")
 
 validate_btn = st.button("Validate")
@@ -42,6 +50,8 @@ if validate_btn:
                     "real": real_file,
                     "synth": synth_file,
                 }
+                if holdout_file:
+                    files["holdout"] = holdout_file
 
                 data = {
                     "label_column": label_column,
@@ -76,6 +86,12 @@ if validate_btn:
                     # Key Metrics
                     st.subheader("Utility")
                     st.json(report["utility"])
+
+                    st.subheader("Dependence")
+                    st.json(report["dependence"])
+
+                    st.subheader("Detectability")
+                    st.json(report["detectability"])
 
                     st.subheader("Privacy")
                     st.json(report["privacy"])
