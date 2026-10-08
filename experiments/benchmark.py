@@ -98,6 +98,15 @@ def split_three(
     )
 
 
+def build_synth(
+    name: str, train: pd.DataFrame, gold: pd.DataFrame, label: str, seed: int
+) -> pd.DataFrame:
+    """The synthetic table of generator `name` for one split (`heldout_real` is H_gold)."""
+    if name == HELDOUT:
+        return gold
+    return GENERATORS[name](train, len(gold), label, seed, fresh=gold)
+
+
 def run_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict[str, Any]]:
     """All generators for one (dataset, seed)."""
     train, gold, base = split_three(df, ds.label, seed, ds.max_rows)
@@ -109,11 +118,7 @@ def run_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict[str, Any]]:
             error = None
             stats, codes = {}, []
             try:
-                synth = (
-                    gold
-                    if name == HELDOUT
-                    else GENERATORS[name](train, n_synth, ds.label, seed, fresh=gold)
-                )
+                synth = build_synth(name, train, gold, ds.label, seed)
                 report = generate_trust_report(
                     train,
                     synth,

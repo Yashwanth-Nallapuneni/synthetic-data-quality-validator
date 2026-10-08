@@ -22,6 +22,8 @@ dependencies = [
 
 [project.optional-dependencies]
 ui = ["streamlit>=1.52,<1.53", "requests>=2.32,<2.33"]
+# Only needed to reproduce experiments/compare_sdmetrics.py (comparison with SDMetrics).
+compare = ["sdmetrics==0.32.0"]
 dev = [
     "pytest>=9,<10",
     "pytest-cov>=7.1,<7.2",
@@ -67,10 +69,10 @@ strict = true
 exclude = ["venv", "experiments/cache"]
 warn_unreachable = true
 
-# scikit-learn, joblib and threadpoolctl ship no type information and have no
+# scikit-learn, joblib, threadpoolctl and sdmetrics ship no type information and have no
 # maintained stub packages, so their imports are treated as Any.
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "joblib.*", "threadpoolctl.*"]
+module = ["sklearn.*", "joblib.*", "threadpoolctl.*", "sdmetrics.*", "copulas.*"]
 ignore_missing_imports = true
 
 [tool.coverage.run]
