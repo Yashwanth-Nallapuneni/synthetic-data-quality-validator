@@ -1,50 +1,59 @@
+"""Single source of truth for numeric vs categorical column typing."""
+
 import numpy as np
 import pandas as pd
+
+
+def _is_categorical_numeric(
+    series: pd.Series, categorical_threshold: int, range_ratio_threshold: float
+) -> bool:
+    """Heuristic for integer-coded categoricals among numeric columns.
+
+    A numeric column is treated as categorical only if it has low cardinality, holds
+    integer-like values and spans a small range relative to its magnitude.
+    """
+    unique_vals = series.nunique()
+    if unique_vals > categorical_threshold:
+        return False
+    is_integer_like = bool(np.allclose(series.to_numpy(dtype=float), np.round(series)))
+    if not is_integer_like:
+        return False
+    value_range = float(series.max() - series.min())
+    scale = max(abs(float(series.mean())), 1.0)
+    return (value_range / scale) < range_ratio_threshold
 
 
 def detect_column_types(
     df: pd.DataFrame,
     categorical_threshold: int = 20,
     range_ratio_threshold: float = 0.05,
-):
-    """
-    Detect numeric vs categorical columns in a tabular dataset.
+) -> dict[str, list[str]]:
+    """Detect numeric vs categorical columns in a tabular dataset.
 
-    A numeric column is considered categorical ONLY IF:
-    - Low cardinality
-    - Integer-like
-    - Small value range relative to magnitude
-    """
+    Returns a dict with three lists of column names:
+    - "numeric": continuous or high-cardinality numeric columns
+    - "categorical": strings, categories, booleans and integer-coded categoricals
+    - "empty": columns with no non-missing values (ignored by every metric)
 
-    numeric_cols = []
-    categorical_cols = []
+    Missing values and infinities are ignored when deciding the type.
+    """
+    numeric_cols: list[str] = []
+    categorical_cols: list[str] = []
+    empty_cols: list[str] = []
 
     for col in df.columns:
-        series = df[col].dropna()
+        series = df[col]
+        if pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series):
+            series = series.replace([np.inf, -np.inf], np.nan)
+        series = series.dropna()
 
-        # Explicit categorical
-        if series.dtype == "object" or str(series.dtype).startswith("category"):
+        if series.empty:
+            empty_cols.append(col)
+        elif pd.api.types.is_bool_dtype(series) or not pd.api.types.is_numeric_dtype(series):
             categorical_cols.append(col)
-            continue
+        elif _is_categorical_numeric(series, categorical_threshold, range_ratio_threshold):
+            categorical_cols.append(col)
+        else:
+            numeric_cols.append(col)
 
-        if pd.api.types.is_numeric_dtype(series):
-            unique_vals = series.nunique()
-
-            is_integer_like = np.allclose(series, series.astype(int))
-            value_range = series.max() - series.min()
-            scale = max(abs(series.mean()), 1.0)
-            range_ratio = value_range / scale
-
-            if (
-                unique_vals <= categorical_threshold
-                and is_integer_like
-                and range_ratio < range_ratio_threshold
-            ):
-                categorical_cols.append(col)
-            else:
-                numeric_cols.append(col)
-
-    return {
-        "numeric": numeric_cols,
-        "categorical": categorical_cols,
-    }
+    return {"numeric": numeric_cols, "categorical": categorical_cols, "empty": empty_cols}
