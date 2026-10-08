@@ -75,5 +75,5 @@ def test_missing_label_raises():
 
 def test_diversity_uses_given_numeric_columns_only():
     real, synth = make_dataset(200, 1), make_dataset(200, 2)
-    d = compute_diversity(real, synth, ["age"])
+    d = compute_diversity(real, synth, ["age"], [])
     assert list(d["variance_ratio"]) == ["age"]

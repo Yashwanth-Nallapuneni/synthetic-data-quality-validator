@@ -108,7 +108,9 @@ def generate_trust_report(
 
     # 4. Diversity
 
-    report["diversity"] = compute_diversity(real_features, synth_features, numeric_cols)
+    report["diversity"] = compute_diversity(
+        real_features, synth_features, numeric_cols, categorical_cols, seed=seed
+    )
 
     # 5. Warnings
 
