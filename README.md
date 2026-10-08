@@ -385,28 +385,28 @@ Per-dataset rates and a leave-one-dataset-out variant (thresholds learned from t
 
 ## Comparison with SDMetrics
 
-SDMetrics 0.32.0 (DataCebo, MIT licence) is the incumbent open-source library for this job. I ran it on the same failure-injection benchmark: the same tables for every (dataset, seed, generator), the same column types, and its thresholds calibrated with exactly the rule used for this tool (`heldout_real` seeds 0 to 19, null extreme minus or plus max(10%, 0.01)) and then scored on seeds 20 to 39. SDMetrics checks are mapped to the failure modes as memorisation to DCR overfitting protection or new row synthesis, categorical shift to Column Shapes, dependence to Column Pair Trends or LogisticDetection, and label damage to ML efficacy. SDMetrics has no diversity or collapse check, so the strict view gives `mode_collapse` no intended check, while the lenient view accepts any SDMetrics check. The last column uses only the single overall Quality score, how it is often used.
+SDMetrics 0.32.0 (DataCebo, MIT licence) is the incumbent open-source library for this job. I ran it on the same failure-injection benchmark: the same tables for every (dataset, seed, generator), the same column types, and its thresholds calibrated with exactly the rule used for this tool (`heldout_real` seeds 0 to 19, null extreme minus or plus max(10%, 0.01)) and then scored on seeds 20 to 39. SDMetrics checks are mapped to the failure modes as memorisation to DCR overfitting protection or new row synthesis, categorical shift to Column Shapes, dependence to Column Pair Trends or LogisticDetection, and label damage to ML efficacy. SDMetrics has no diversity or collapse check, so the strict view gives `mode_collapse` no intended check, while the lenient view accepts any SDMetrics check. The last column uses only the single overall Quality score, how it is often used. The two "worst column/pair" columns were added after I had seen the first results, following a fairness review: our marginal checks use the worst column while Column Shapes and Column Pair Trends are averages, so these columns use the smallest per-column and per-pair score of the same QualityReport instead (same calibration protocol). The change can only help SDMetrics, and it does.
 
 <!-- sdmetrics-comparison:start -->
 
 Test seeds 20 to 39, 60 runs per generator. Cells are the fraction of test runs in which the intended check fired ("detected" means at least 90%). Both tools' thresholds come from `heldout_real` seeds 0 to 19 with the same rule.
 
-| Failure mode | Ours (intended warning) | SDMetrics strict | SDMetrics lenient | SDMetrics overall score only |
-|---|---|---|---|---|
-| `exact_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
-| `near_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
-| `column_shuffle` | 1.00 detected | 0.55 | 0.78 | 0.00 |
-| `mode_collapse` | 1.00 detected | 0.00 | 1.00 detected | 1.00 detected |
-| `category_oversample` | 1.00 detected | 0.00 | 0.67 | 0.17 |
-| `label_shuffle` | 0.92 detected | 0.38 | 0.43 | 0.00 |
-| `near_copy_5pct` (not in count) | 1.00 | 1.00 | 1.00 | 0.00 |
-| Failure modes detected | 6 of 6 | 2 of 6 | 3 of 6 | 1 of 6 |
-| `heldout_real` runs with any warning | 4 of 60 | 0 of 60 | 0 of 60 | 0 of 60 |
-| `gaussian_copula` runs with any warning | 60 of 60 | 15 of 60 | 15 of 60 | 0 of 60 |
+| Failure mode | Ours (intended warning) | SDMetrics strict | SDMetrics strict (worst column/pair) | SDMetrics lenient | SDMetrics lenient (worst column/pair) | SDMetrics overall score only |
+|---|---|---|---|---|---|---|
+| `exact_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
+| `near_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
+| `column_shuffle` | 1.00 detected | 0.55 | 0.40 | 0.78 | 0.78 | 0.00 |
+| `mode_collapse` | 1.00 detected | 0.00 | 0.00 | 1.00 detected | 1.00 detected | 1.00 detected |
+| `category_oversample` | 1.00 detected | 0.00 | 1.00 detected | 0.67 | 1.00 detected | 0.17 |
+| `label_shuffle` | 0.92 detected | 0.38 | 0.38 | 0.43 | 0.48 | 0.00 |
+| `near_copy_5pct` (not in count) | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0.00 |
+| Failure modes detected | 6 of 6 | 2 of 6 | 3 of 6 | 3 of 6 | 4 of 6 | 1 of 6 |
+| `heldout_real` runs with any warning | 4 of 60 | 0 of 60 | 0 of 60 | 0 of 60 | 0 of 60 | 0 of 60 |
+| `gaussian_copula` runs with any warning | 60 of 60 | 15 of 60 | 30 of 60 | 15 of 60 | 30 of 60 | 0 of 60 |
 
 <!-- sdmetrics-comparison:end -->
 
-**Takeaway.** On this benchmark this validator detects more failure modes than SDMetrics, with the largest gaps on `category_oversample`, `mode_collapse` (no SDMetrics diversity check), `label_shuffle` and `column_shuffle`, and both tools catch exact and near copies. The price is a higher false-alarm count (4 of 60 `heldout_real` runs against 0 of 60), partly because SDMetrics' pooled thresholds are wide (its worst real-data score sets the cut-off for all three datasets). SDMetrics is faster only on small data: its DCR metric makes it about 6 times slower per run here. Caveats: the benchmark was built around this tool's checks, the SDMetrics mapping and ML efficacy ratio are my choices, and per-dataset SDMetrics thresholds might do better. The other differences are not about detection: per-check calibrated thresholds with a stated false-alarm target, warnings that name the metric and value, a holdout privacy baseline with a tie-robust rank statistic, and an API and CLI. Method details, per-dataset numbers and runtimes are in [Comparison with SDMetrics](experiments/README.md#comparison-with-sdmetrics). To reproduce: `pip install -e ".[compare]" && python -m experiments.compare_sdmetrics && python -m experiments.compare_report --update-readme README.md --update-full experiments/README.md` (about 80 minutes on 3 jobs).
+**Takeaway.** On this benchmark this validator detects 6 of 6 failure modes and SDMetrics 2 to 4 of 6, depending on how it is used. Using the worst column instead of the average (a change made after seeing the first results) lifts SDMetrics from 2 to 3 of 6 in the strict view and from 3 to 4 of 6 in the lenient one: `category_oversample` is then caught in every run, so the first gap on that mode was an averaging effect and not a lack of capability. Exact and near copies are caught by both tools in every run. Three gaps remain: `column_shuffle` (SDMetrics at most 78%, and only 40% for the strict worst-pair mapping, because the worst pair is a noisy statistic), `label_shuffle` (38% to 48%) and `mode_collapse` (no SDMetrics diversity check; the lenient view catches it only because fidelity scores happen to drop). The price is a higher false-alarm count (4 of 60 `heldout_real` runs against 0 of 60 for every SDMetrics view), partly because SDMetrics' pooled thresholds are wide, and the worst-column checks raise SDMetrics' warnings on `gaussian_copula` from 15 to 30 of 60 (ours: 60 of 60). SDMetrics is faster only on small data: its DCR metric makes it about 6 times slower per run here. Caveats: the benchmark was built around this tool's checks, the SDMetrics mapping and ML efficacy ratio are my choices, and per-dataset SDMetrics thresholds might do better. The other differences are not about detection: per-check calibrated thresholds with a stated false-alarm target, warnings that name the metric and value, a holdout privacy baseline with a tie-robust rank statistic, and an API and CLI. Method details, per-dataset numbers and runtimes are in [Comparison with SDMetrics](experiments/README.md#comparison-with-sdmetrics). To reproduce: `pip install -e ".[compare]" && python -m experiments.compare_sdmetrics && python -m experiments.compare_sdmetrics --worst-only && python -m experiments.compare_report --update-readme README.md --update-full experiments/README.md` (about 80 minutes on 3 jobs, plus 1 minute for the worst-column pass).
 
 ## Limitations
 
