@@ -383,6 +383,31 @@ Per-dataset rates and a leave-one-dataset-out variant (thresholds learned from t
 - The 4 of 60 false-alarm count has a small denominator, so the true rate is uncertain
 - The thresholds are tuned to the dataset sizes used here (a few hundred to a few thousand rows). Other sizes may need recalibration with `python -m experiments.calibrate`
 
+## Comparison with SDMetrics
+
+SDMetrics 0.32.0 (DataCebo, MIT licence) is the incumbent open-source library for this job. I ran it on the same failure-injection benchmark: the same tables for every (dataset, seed, generator), the same column types, and its thresholds calibrated with exactly the rule used for this tool (`heldout_real` seeds 0 to 19, null extreme minus or plus max(10%, 0.01)) and then scored on seeds 20 to 39. SDMetrics checks are mapped to the failure modes as memorisation to DCR overfitting protection or new row synthesis, categorical shift to Column Shapes, dependence to Column Pair Trends or LogisticDetection, and label damage to ML efficacy. SDMetrics has no diversity or collapse check, so the strict view gives `mode_collapse` no intended check, while the lenient view accepts any SDMetrics check. The last column uses only the single overall Quality score, how it is often used.
+
+<!-- sdmetrics-comparison:start -->
+
+Test seeds 20 to 39, 60 runs per generator. Cells are the fraction of test runs in which the intended check fired ("detected" means at least 90%). Both tools' thresholds come from `heldout_real` seeds 0 to 19 with the same rule.
+
+| Failure mode | Ours (intended warning) | SDMetrics strict | SDMetrics lenient | SDMetrics overall score only |
+|---|---|---|---|---|
+| `exact_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
+| `near_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
+| `column_shuffle` | 1.00 detected | 0.55 | 0.78 | 0.00 |
+| `mode_collapse` | 1.00 detected | 0.00 | 1.00 detected | 1.00 detected |
+| `category_oversample` | 1.00 detected | 0.00 | 0.67 | 0.17 |
+| `label_shuffle` | 0.92 detected | 0.38 | 0.43 | 0.00 |
+| `near_copy_5pct` (not in count) | 1.00 | 1.00 | 1.00 | 0.00 |
+| Failure modes detected | 6 of 6 | 2 of 6 | 3 of 6 | 1 of 6 |
+| `heldout_real` runs with any warning | 4 of 60 | 0 of 60 | 0 of 60 | 0 of 60 |
+| `gaussian_copula` runs with any warning | 60 of 60 | 15 of 60 | 15 of 60 | 0 of 60 |
+
+<!-- sdmetrics-comparison:end -->
+
+**Takeaway.** On this benchmark this validator detects more failure modes than SDMetrics, with the largest gaps on `category_oversample`, `mode_collapse` (no SDMetrics diversity check), `label_shuffle` and `column_shuffle`, and both tools catch exact and near copies. The price is a higher false-alarm count (4 of 60 `heldout_real` runs against 0 of 60), partly because SDMetrics' pooled thresholds are wide (its worst real-data score sets the cut-off for all three datasets). SDMetrics is faster only on small data: its DCR metric makes it about 6 times slower per run here. Caveats: the benchmark was built around this tool's checks, the SDMetrics mapping and ML efficacy ratio are my choices, and per-dataset SDMetrics thresholds might do better. The other differences are not about detection: per-check calibrated thresholds with a stated false-alarm target, warnings that name the metric and value, a holdout privacy baseline with a tie-robust rank statistic, and an API and CLI. Method details, per-dataset numbers and runtimes are in [Comparison with SDMetrics](experiments/README.md#comparison-with-sdmetrics). To reproduce: `pip install -e ".[compare]" && python -m experiments.compare_sdmetrics && python -m experiments.compare_report --update-readme README.md --update-full experiments/README.md` (about 80 minutes on 3 jobs).
+
 ## Limitations
 
 - The thresholds are calibrated on three datasets of a few hundred to a few thousand rows and may not transfer to other sizes or domains (see [Validation against injected failures](#validation-against-injected-failures)). Leave-one-dataset-out thresholds raised many more warnings on real held-out data

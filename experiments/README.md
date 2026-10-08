@@ -18,10 +18,14 @@ python -m experiments.calibrate --update-readme README.md
 | `generators.py` | Gaussian copula and the six failure injections (`fresh` rows for the four isolated ones) |
 | `benchmark.py` | Splits, runs, records raw statistics (`stats`) and provisional-threshold warning codes per run |
 | `calibrate.py` | Threshold learning, test-set evaluation, leave-one-dataset-out variant |
+| `compare_sdmetrics.py` | Runs SDMetrics on the same tables (needs the `compare` extra), re-times our validator |
+| `compare_report.py` | Calibrates SDMetrics thresholds with the same rule and writes `comparison.md` and `comparison.json` |
 | `results/runs.jsonl` | One line per (dataset, seed, generator): statistics, runtime, errors |
 | `results/meta.json` | Datasets (id, name, version, licence), seeds, split, package versions, total runtime |
 | `results/detection_matrix.md` and `.json` | Hit rate per generator and warning code on the test seeds, intended and any-warning rates, per-dataset breakdown |
 | `results/detection_matrix_details.md` | Per-dataset table and the leave-one-dataset-out matrix |
+| `results/sdmetrics_runs.jsonl`, `sdmetrics_meta.json`, `sdmetrics_directions.json` | Raw SDMetrics scores, runtimes and errors per run, versions, and the hand-built direction checks |
+| `results/comparison.md` and `.json` | The generated SDMetrics comparison |
 | `results/summary.json` | Headline: failure modes detected, `heldout_real` false-alarm count, copula rate, leave-one-dataset-out headline |
 
 ## Design
@@ -45,6 +49,145 @@ python -m experiments.calibrate --update-readme README.md
 | `label_shuffle` | bootstrap of H_gold with the label column permuted |
 
 The Gaussian copula maps numeric columns through the empirical CDF to normal scores and categorical columns (label included) to jittered intervals by frequency, fits a multivariate normal to the scores and inverts the mapping. Integer-like columns are rounded back. Missing categoricals are their own category and missing numerics are re-created at the training missing rate.
+
+## Comparison with SDMetrics
+
+Reproduce with (about 80 minutes with `--jobs 3`, about 1.3 GB of memory per job; the benchmark results above must exist):
+
+```bash
+pip install -e ".[compare]"
+python -m experiments.compare_sdmetrics --jobs 3
+python -m experiments.compare_report --update-readme README.md --update-full experiments/README.md
+```
+
+`compare_sdmetrics` rebuilds T, H_gold, H_base and the synthetic table of all 1,080 runs through `benchmark.split_three` and `benchmark.build_synth` (the only change to `benchmark.py` was extracting `build_synth` from `run_unit`). It also re-runs our validator on every run, times it and compares its statistics with `runs.jsonl`: 0 of 1,080 differed by more than 1e-9, so the comparison used the same inputs and no benchmark result changed. `compare_report` then calibrates and evaluates.
+
+**SDMetrics 0.32.0 scores.** QualityReport (overall score, Column Shapes, Column Pair Trends; the `sdmetrics.reports.single_table` class, which prints a deprecation warning but accepts single-table metadata), LogisticDetection(T, S), DCROverfittingProtection(T as training data, S, H_base as validation data, so it gets the same holdout as our privacy check, no subsampling), NewRowSynthesis(T, S) and ML efficacy. Efficacy uses BinaryLogisticRegression for two classes and MulticlassDecisionTreeClassifier for CMC, trained on the synthetic table and on T and tested on H_base. The calibrated statistic is the ratio TSTR / TRTR (SDMetrics' default F1 or macro F1), so that datasets with different baseline scores can share one threshold, as our utility check does. Metadata comes from `detect_column_types` plus our label typing, so both tools see the same numeric and categorical columns.
+
+**Directions verified on hand-built cases** (`results/sdmetrics_directions.json`, run before every comparison): every score is higher is better, so every check warns when the score is low. An exact copy of T scores 0.0 on DCR overfitting protection and 0.0 on NewRowSynthesis against about 0.5 and 1.0 for a fresh sample. LogisticDetection is 1 minus the mean over folds of (2 max(AUC, 0.5) - 1), so a shifted sample scores 0.0 and an undetectable one near 1.0. Column Shapes, Column Pair Trends and the overall score fall for shifted or column-permuted samples. The efficacy ratio falls from about 1.0 to 0.77 when the label is permuted.
+
+**Protocol.** Identical to the main benchmark: SDMetrics thresholds come only from `heldout_real` runs of seeds 0 to 19 pooled over the three datasets (60 values per score), rule null extreme minus max(10%, 0.01) for these warn-below scores, then applied unchanged to seeds 20 to 39. Detected means the intended check fires in at least 90% of the 60 test runs. No threshold of either tool was changed after seeing test seeds.
+
+**Mapping of checks to failure modes.**
+
+| Failure mode | Ours (intended) | SDMetrics strict |
+|---|---|---|
+| `exact_copy`, `near_copy` | `privacy_memorisation` | DCR overfitting protection or NewRowSynthesis |
+| `column_shuffle` | `dependence_shift` or `detectability_high_auc` | Column Pair Trends or LogisticDetection |
+| `mode_collapse` | `diversity_mode_collapse` or `diversity_low_coverage` | none (SDMetrics has no diversity check) |
+| `category_oversample` | any `categorical_*` code | Column Shapes |
+| `label_shuffle` | `utility_degradation` | ML efficacy ratio |
+
+The lenient view counts any of the six individual SDMetrics checks. The overall-score view counts only the QualityReport overall score. Any-warning counts for SDMetrics use the six individual checks (lenient and strict share them).
+
+**Result.** The table below is generated by `compare_report` (the same table is in the main README).
+
+<!-- sdmetrics-full:start -->
+
+Test seeds 20 to 39 (60 runs per generator, 3 datasets). Thresholds for both tools come from `heldout_real` runs of seeds 0 to 19 with the same rule. A mode counts as detected when its intended check fires in at least 90% of test runs. Cells are the fraction of test runs in which the intended check fired. SDMetrics strict uses the analogous SDMetrics check and has none for `mode_collapse` (SDMetrics has no diversity check). SDMetrics lenient counts any individual SDMetrics check. The last column uses only the overall Quality score.
+
+| Failure mode | Ours (intended warning) | SDMetrics strict | SDMetrics lenient | SDMetrics overall score only |
+|---|---|---|---|---|
+| `exact_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
+| `near_copy` | 1.00 detected | 1.00 detected | 1.00 detected | 0.00 |
+| `column_shuffle` | 1.00 detected | 0.55 | 0.78 | 0.00 |
+| `mode_collapse` | 1.00 detected | 0.00 | 1.00 detected | 1.00 detected |
+| `category_oversample` | 1.00 detected | 0.00 | 0.67 | 0.17 |
+| `label_shuffle` | 0.92 detected | 0.38 | 0.43 | 0.00 |
+| `near_copy_5pct` (not in count) | 1.00 | 1.00 | 1.00 | 0.00 |
+| Failure modes detected | 6 of 6 | 2 of 6 | 3 of 6 | 1 of 6 |
+| `heldout_real` runs with any warning | 4 of 60 | 0 of 60 | 0 of 60 | 0 of 60 |
+| `gaussian_copula` runs with any warning | 60 of 60 | 15 of 60 | 15 of 60 | 0 of 60 |
+
+Per dataset (intended check fired, then any-warning counts):
+
+| Failure mode | View | adult | cmc | german_credit |
+|---|---|---|---|---|
+| `exact_copy` | Ours (intended warning) | 1.00 | 1.00 | 1.00 |
+| `exact_copy` | SDMetrics strict | 1.00 | 1.00 | 1.00 |
+| `exact_copy` | SDMetrics lenient | 1.00 | 1.00 | 1.00 |
+| `exact_copy` | SDMetrics overall score only | 0.00 | 0.00 | 0.00 |
+| `near_copy` | Ours (intended warning) | 1.00 | 1.00 | 1.00 |
+| `near_copy` | SDMetrics strict | 1.00 | 1.00 | 1.00 |
+| `near_copy` | SDMetrics lenient | 1.00 | 1.00 | 1.00 |
+| `near_copy` | SDMetrics overall score only | 0.00 | 0.00 | 0.00 |
+| `column_shuffle` | Ours (intended warning) | 1.00 | 1.00 | 1.00 |
+| `column_shuffle` | SDMetrics strict | 1.00 | 0.10 | 0.55 |
+| `column_shuffle` | SDMetrics lenient | 1.00 | 0.55 | 0.80 |
+| `column_shuffle` | SDMetrics overall score only | 0.00 | 0.00 | 0.00 |
+| `mode_collapse` | Ours (intended warning) | 1.00 | 1.00 | 1.00 |
+| `mode_collapse` | SDMetrics strict | 0.00 | 0.00 | 0.00 |
+| `mode_collapse` | SDMetrics lenient | 1.00 | 1.00 | 1.00 |
+| `mode_collapse` | SDMetrics overall score only | 1.00 | 1.00 | 1.00 |
+| `category_oversample` | Ours (intended warning) | 1.00 | 1.00 | 1.00 |
+| `category_oversample` | SDMetrics strict | 0.00 | 0.00 | 0.00 |
+| `category_oversample` | SDMetrics lenient | 0.00 | 1.00 | 1.00 |
+| `category_oversample` | SDMetrics overall score only | 0.00 | 0.50 | 0.00 |
+| `label_shuffle` | Ours (intended warning) | 1.00 | 0.90 | 0.85 |
+| `label_shuffle` | SDMetrics strict | 0.40 | 0.45 | 0.30 |
+| `label_shuffle` | SDMetrics lenient | 0.45 | 0.45 | 0.40 |
+| `label_shuffle` | SDMetrics overall score only | 0.00 | 0.00 | 0.00 |
+| `near_copy_5pct` | Ours (intended warning) | 1.00 | 1.00 | 1.00 |
+| `near_copy_5pct` | SDMetrics strict | 1.00 | 1.00 | 1.00 |
+| `near_copy_5pct` | SDMetrics lenient | 1.00 | 1.00 | 1.00 |
+| `near_copy_5pct` | SDMetrics overall score only | 0.00 | 0.00 | 0.00 |
+| `heldout_real` any warning | Ours (intended warning) | 0 of 20 | 2 of 20 | 2 of 20 |
+| `heldout_real` any warning | SDMetrics strict | 0 of 20 | 0 of 20 | 0 of 20 |
+| `heldout_real` any warning | SDMetrics lenient | 0 of 20 | 0 of 20 | 0 of 20 |
+| `heldout_real` any warning | SDMetrics overall score only | 0 of 20 | 0 of 20 | 0 of 20 |
+| `gaussian_copula` any warning | Ours (intended warning) | 20 of 20 | 20 of 20 | 20 of 20 |
+| `gaussian_copula` any warning | SDMetrics strict | 6 of 20 | 6 of 20 | 3 of 20 |
+| `gaussian_copula` any warning | SDMetrics lenient | 6 of 20 | 6 of 20 | 3 of 20 |
+| `gaussian_copula` any warning | SDMetrics overall score only | 0 of 20 | 0 of 20 | 0 of 20 |
+
+SDMetrics thresholds and false alarms of each score on the `heldout_real` test runs:
+
+| SDMetrics score | Warns when | Calibrated threshold | Null extreme | Null values | `heldout_real` test false alarms |
+|---|---|---|---|---|---|
+| `column_shapes` | below | 0.8543 | 0.9492 | 60 | 0 of 60 |
+| `column_pair_trends` | below | 0.7660 | 0.8511 | 60 | 0 of 60 |
+| `logistic_detection` | below | 0.7521 | 0.8357 | 60 | 0 of 60 |
+| `dcr_overfitting` | below | 0.4536 | 0.5040 | 60 | 0 of 60 |
+| `new_row_synthesis` | below | 0.8584 | 0.9538 | 60 | 0 of 60 |
+| `efficacy_ratio` | below | 0.7298 | 0.8109 | 60 | 0 of 60 |
+| `quality_score` | below | 0.8132 | 0.9035 | 60 | 0 of 60 |
+
+Runtime (all runs; both tools timed inside the same parallel job, one thread each):
+
+| Tool | Mean seconds per run |
+|---|---|
+| Ours (`generate_trust_report`, validator only) | 1.91 |
+| SDMetrics (all metrics below) | 11.80 |
+| SDMetrics `quality_score` | 0.21 |
+| SDMetrics `logistic_detection` | 0.09 |
+| SDMetrics `dcr_overfitting` | 8.27 |
+| SDMetrics `new_row_synthesis` | 3.14 |
+| SDMetrics `efficacy_ratio` | 0.10 |
+
+SDMetrics errors: none.
+Runs where our re-run did not reproduce the stored statistics: 0.
+
+<!-- sdmetrics-full:end -->
+
+**Reading the result.**
+- Exact and near copies are caught by both tools in every run. This is the one failure mode where SDMetrics matches this tool
+- This tool detects 6 of 6 modes, SDMetrics strict 2 of 6, lenient 3 of 6 and the overall score alone 1 of 6. The lenient and overall-score views only catch `mode_collapse` because the collapsed sample is so far from the real data that fidelity scores drop; that is a coincidence of the check, not a diversity check
+- `category_oversample` is missed by Column Shapes on every dataset. Column Shapes averages over all columns (15 on Adult), so changing one column dilutes to a small drop that the pooled threshold, set by the worst real-data score across the datasets, absorbs. Our categorical checks include the largest single-category shift, which does not dilute
+- `label_shuffle` and `column_shuffle` are caught by SDMetrics in 38% and 55% of runs (strict). LogisticDetection is linear and does not see broken dependence, and the efficacy ratio threshold is pooled over datasets
+- `heldout_real`: this tool raised a warning in 4 of 60 test runs and SDMetrics in 0 of 60 under any view. SDMetrics' thresholds are wide because the margin (10% of the extreme) applies to scores near 0.9 to 0.95, so its better false-alarm count partly reflects lower sensitivity. I did not search for a threshold that equalises the two
+- `gaussian_copula`: warnings in 60 of 60 runs for this tool and 15 of 60 for SDMetrics. The copula attenuates dependence, so a warning is defensible, but this is not a false alarm count for either tool
+- Runtime: SDMetrics is about 6 times slower per run here, almost all of it DCR overfitting protection (8.3 s per run on average, 15 s on Adult) and NewRowSynthesis (3.1 s). Both tools were timed in the same parallel job, one thread each. Our figure is `generate_trust_report` only
+
+**Honest differentiation.** Detection of memorisation is a tie. On the other four modes this benchmark favours this tool, but the benchmark was designed around this tool's checks and the injections are strong, so it does not show that SDMetrics is a bad library. The differences that do not depend on the benchmark: every check has its own threshold learned from real held-out data with a stated false-alarm target (SDMetrics ships scores without thresholds, so the threshold is the user's problem), warnings say which column or model and what value, the privacy check takes a holdout and uses a tie-robust rank statistic, and there is an API, a CLI and a UI.
+
+**Limitations.**
+- The SDMetrics threshold choice follows our rule and pools the datasets. Per-dataset thresholds or a different margin could raise SDMetrics' sensitivity, and I did not try them
+- The mapping of SDMetrics checks to failure modes and the efficacy ratio are my choices. A different efficacy model or a raw TSTR score would change the `label_shuffle` row
+- LogisticDetection and the efficacy metrics error out when one frame holds a categorical value the other lacks (this happens on genuine held-out real data). For those two calls only, unseen values were replaced by the reference frame's most common value (`mask_unseen_categories`). With that in place there were 0 metric errors in 1,080 runs. In an earlier smoke test without the replacement these errors appeared on `heldout_real` runs
+- Three datasets, a weak copula as the only "good but imperfect" generator and injections chosen by me, as for the main benchmark
+- ML efficacy is classification only (no regression dataset)
+
+**Log of changes during the comparison.** The first full launch used 8 parallel jobs and was stopped after about 35 minutes because 8 jobs of 1.3 GB each exceeded the 8 GB of memory and the machine thrashed; it produced no results and was restarted with 3 jobs. The first version of the unseen-category handling replaced values by missing; it failed on frames where only one side had missing values, so it was changed to the mode replacement before any full run. The direction check initially required a 0.3 drop for the efficacy ratio on a toy case, which was too strict for F1 (the drop is 0.23), so it was relaxed to 0.15; this affected only the self-test. No bug in the comparison code was found after looking at the test-seed results.
 
 ## Changes between v1 and v2
 
