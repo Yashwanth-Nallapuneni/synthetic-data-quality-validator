@@ -1,5 +1,12 @@
 # Synthetic Data Quality Validator
 
+[![CI](https://github.com/Yashwanth-Nallapuneni/synthetic-data-quality-validator/actions/workflows/ci.yml/badge.svg)](https://github.com/Yashwanth-Nallapuneni/synthetic-data-quality-validator/actions/workflows/ci.yml)
+![Python 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
+![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230)
+![Types: mypy strict](https://img.shields.io/badge/types-mypy%20strict-2a6db2)
+
+Test coverage of `app/` and `experiments/`: 96% (measured 2026-10-08 on Python 3.13, enforced floor 92% in CI).
+
 A framework to evaluate synthetic tabular data across fidelity, dependence, detectability, utility, privacy and diversity. It detects numeric and categorical columns automatically and raises warnings when a metric crosses a threshold.
 
 The warning thresholds are calibrated on held-out real data and the validator is tested against injected failures (see [Validation against injected failures](#validation-against-injected-failures)). On held-out real data it still raises a warning in some runs, so treat the warnings as screening signals.
@@ -140,7 +147,7 @@ synthetic-validator/
 ├── start.sh                      # Render start command
 ├── pyproject.toml
 ├── requirements.txt              # Pinned runtime dependencies
-└── .github/workflows/ci.yml      # Lint and tests on push and PR
+└── .github/workflows/ci.yml      # Lint, type check and tests with coverage on push and PR
 ```
 
 ## Install and test
@@ -149,7 +156,9 @@ synthetic-validator/
 python -m venv venv && source venv/bin/activate
 pip install -e ".[dev,ui]"
 ruff check .
-pytest -q
+ruff format --check .
+mypy
+pytest -q --cov
 ```
 
 Python 3.11 or newer is required. `requirements.txt` pins the exact versions used by the Docker images.
