@@ -12,5 +12,7 @@ services:
       dockerfile: Dockerfile.streamlit
     ports:
       - "8502:8501"
+    environment:
+      API_URL: http://api:8000/validate
     depends_on:
       - api

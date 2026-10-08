@@ -1,7 +1,11 @@
-import streamlit as st
-import requests
+import os
 
-API_URL = "https://synthetic-data-quality-validator.onrender.com/validate"
+import requests
+import streamlit as st
+
+API_URL = os.environ.get(
+    "API_URL", "https://synthetic-data-quality-validator.onrender.com/validate"
+)
 
 st.set_page_config(
     page_title="Synthetic Data Quality Validator",
