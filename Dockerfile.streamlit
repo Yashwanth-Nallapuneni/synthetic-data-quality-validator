@@ -5,6 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# ui.py imports its table-building helpers from app/ (app/ui_helpers.py)
+COPY app ./app
 COPY ui.py .
 
 EXPOSE 8501

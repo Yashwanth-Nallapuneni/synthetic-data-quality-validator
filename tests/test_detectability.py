@@ -36,9 +36,10 @@ def test_independently_shuffled_columns_are_detectable():
 def test_tiny_data_is_insufficient():
     out = compute_detectability(make_dataset(10, 1), make_dataset(10, 2), NUM, CAT)
     assert out["status"] == "insufficient_data"
-    assert compute_detectability(make_dataset(100, 1), make_dataset(100, 2), [], [])[
-        "status"
-    ] == "insufficient_data"
+    assert (
+        compute_detectability(make_dataset(100, 1), make_dataset(100, 2), [], [])["status"]
+        == "insufficient_data"
+    )
 
 
 def test_rows_are_capped_and_balanced():
