@@ -273,9 +273,7 @@ START_MARK = "<!-- detection-matrix:start -->"
 END_MARK = "<!-- detection-matrix:end -->"
 
 
-def embed_in_readme(
-    readme: Path, text: str, start: str = START_MARK, end: str = END_MARK
-) -> None:
+def embed_in_readme(readme: Path, text: str, start: str = START_MARK, end: str = END_MARK) -> None:
     """Replace the text between the `start` and `end` markers in `readme` with `text`."""
     body = readme.read_text()
     a, b = body.index(start) + len(start), body.index(end)

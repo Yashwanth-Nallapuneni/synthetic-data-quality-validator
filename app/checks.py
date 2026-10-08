@@ -225,9 +225,7 @@ def _threshold_value(check: Check, th: Thresholds) -> float:
 
 def matching_stats(check: Check, stats: dict) -> list[tuple[str, float]]:
     """(key, value) pairs for the check's statistic, skipping missing values."""
-    return [
-        (k, v) for k, v in stats.items() if v is not None and fnmatchcase(k, check.stat)
-    ]
+    return [(k, v) for k, v in stats.items() if v is not None and fnmatchcase(k, check.stat)]
 
 
 def evaluate_checks(

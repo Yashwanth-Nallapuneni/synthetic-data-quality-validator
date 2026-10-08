@@ -69,9 +69,7 @@ def generate_trust_report(
     real_features = coerce_features(real_features, numeric_cols, categorical_cols)
     synth_features = coerce_features(synth_features, numeric_cols, categorical_cols)
     holdout_features = (
-        coerce_features(
-            holdout_df.drop(columns=[label_column]), numeric_cols, categorical_cols
-        )
+        coerce_features(holdout_df.drop(columns=[label_column]), numeric_cols, categorical_cols)
         if holdout_df is not None
         else None
     )

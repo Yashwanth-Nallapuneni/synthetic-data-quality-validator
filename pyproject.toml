@@ -47,3 +47,6 @@ extend-exclude = ["venv", ".venv", "experiments/cache"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 ignore = ["B008"]  # FastAPI File()/Form() defaults
+
+[tool.ruff.format]
+quote-style = "double"

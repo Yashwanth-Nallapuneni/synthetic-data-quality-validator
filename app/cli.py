@@ -69,8 +69,7 @@ def _print_summary(report: dict) -> None:
         for name, m in util["models"].items():
             if util["task"] == "regression":
                 print(
-                    f"Utility {name}: TRTR R2 {m['trtr']['r2']:.3f}, "
-                    f"TSTR R2 {m['tstr']['r2']:.3f}"
+                    f"Utility {name}: TRTR R2 {m['trtr']['r2']:.3f}, TSTR R2 {m['tstr']['r2']:.3f}"
                 )
             else:
                 print(
