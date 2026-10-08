@@ -4,8 +4,9 @@
 
 Reads the raw runs written by experiments.benchmark and:
 
-1. Splits seeds into a CALIBRATION half (even seeds) and a TEST half (odd seeds), across all
-   datasets.
+1. Splits seeds into a CALIBRATION set (seeds 0 to 19, all of which were seen in the v1
+   protocol) and a TEST set (seeds 20 to 39, never looked at before the v2 design was fixed),
+   across all datasets.
 2. Learns every warning threshold from the heldout_real runs of the calibration half only.
    The broken generators and the Gaussian copula play no part in choosing thresholds.
 3. Re-applies the thresholds to the recorded statistics of the TEST half and writes the
@@ -39,6 +40,7 @@ from experiments.generators import BROKEN, HELDOUT
 RESULTS = Path(__file__).resolve().parent / "results"
 REL_MARGIN = 0.10
 ABS_MARGIN = 0.01
+N_CAL_SEEDS = 20
 DETECTION_TARGET = 0.9
 NULL = HELDOUT
 
@@ -78,8 +80,10 @@ def load_runs(results: Path) -> list[dict]:
 
 
 def split_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
-    """(calibration runs on even seeds, test runs on odd seeds)."""
-    return [r for r in runs if r["seed"] % 2 == 0], [r for r in runs if r["seed"] % 2 == 1]
+    """(calibration runs on seeds below N_CAL_SEEDS, test runs on the remaining seeds)."""
+    return [r for r in runs if r["seed"] < N_CAL_SEEDS], [
+        r for r in runs if r["seed"] >= N_CAL_SEEDS
+    ]
 
 
 def calibrate_thresholds(null_runs: list[dict]) -> tuple[Thresholds, dict]:
@@ -179,6 +183,13 @@ def matrix_markdown(table: dict) -> str:
     return "\n".join(lines)
 
 
+def null_false_alarm_markdown(per_code: dict) -> str:
+    lines = ["| warning code | k of n | rate |", "|---|---|---|"]
+    for c, v in per_code.items():
+        lines.append(f"| `{c}` | {v['k']} of {v['n']} | {v['rate']:.3f} |")
+    return "\n".join(lines)
+
+
 def per_dataset(runs: list[dict], th: Thresholds, datasets: list[str]) -> dict:
     return {d: detection_table([r for r in runs if r["dataset"] == d], th) for d in datasets}
 
@@ -208,7 +219,13 @@ def headline(table: dict) -> dict:
             "detected": rate >= DETECTION_TARGET,
         }
     null, copula = table[NULL], table["gaussian_copula"]
+    n_det, n_modes = sum(v["detected"] for v in modes.values()), len(HEADLINE_MODES)
     return {
+        "headline": (
+            f"detects {n_det} of {n_modes} injected failure modes (intended warning in at least "
+            f"{DETECTION_TARGET:.0%} of held-out runs) with {null['n_any_warning']} of "
+            f"{null['n_runs']} held-out-real runs raising any warning"
+        ),
         "detection_rule": f"intended warning fires in at least {DETECTION_TARGET:.0%} of test runs",
         "n_failure_modes": len(HEADLINE_MODES),
         "n_detected": sum(v["detected"] for v in modes.values()),
@@ -218,7 +235,10 @@ def headline(table: dict) -> dict:
             "k": null["n_any_warning"],
             "n": null["n_runs"],
             "rate": null["any_warning"],
-            "codes_fired": {c: r for c, r in null["code_hit_rate"].items() if r},
+            "per_code": {
+                c: {"k": round(r * null["n_runs"]), "n": null["n_runs"], "rate": r}
+                for c, r in null["code_hit_rate"].items()
+            },
         },
         "gaussian_copula_any_warning": {
             "k": copula["n_any_warning"],
@@ -232,12 +252,17 @@ def headline(table: dict) -> dict:
 
 def lodo_table(runs: list[dict], datasets: list[str]) -> dict:
     """Detection table where each test run is scored with thresholds learned on the other
-    datasets' heldout_real runs (all seeds), so its own dataset never informs its thresholds."""
+    datasets' heldout_real calibration-seed runs, so its own dataset never informs its
+    thresholds."""
     ths = {}
     for d in datasets:
-        null = [r for r in runs if r["generator"] == NULL and r["dataset"] != d]
+        null = [
+            r
+            for r in runs
+            if r["generator"] == NULL and r["dataset"] != d and r["seed"] < N_CAL_SEEDS
+        ]
         ths[d] = calibrate_thresholds(null)[0]
-    test = [r for r in runs if r["seed"] % 2 == 1]
+    test = [r for r in runs if r["seed"] >= N_CAL_SEEDS]
     return {
         "table": detection_table(test, ths),
         "thresholds": {d: t.to_dict() for d, t in ths.items()},
@@ -292,7 +317,7 @@ def main(argv: list[str] | None = None) -> int:
         "datasets": datasets,
         "n_null_runs": len(null_cal),
         "generators_used_for_calibration": [NULL],
-        "source": "experiments/results/runs.jsonl",
+        "source": "experiments/results/runs.jsonl (protocol v2)",
         "per_threshold": details,
         "not_calibrated": sorted(
             set(Thresholds().to_dict()) - {k for k, v in details.items() if "threshold" in v}
@@ -327,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
     fa = h["heldout_real_false_alarm"]
     cp = h["gaussian_copula_any_warning"]
     md = [
-        f"Test half: odd seeds {test_seeds[0]} to {test_seeds[-1]} on {len(datasets)} datasets "
+        f"Test set: seeds {test_seeds[0]} to {test_seeds[-1]} on {len(datasets)} datasets "
         f"({table[NULL]['n_runs']} runs per generator). Cells are the fraction of runs in which "
         "the warning fired. Columns for codes that never fired are omitted.",
         "",
@@ -342,6 +367,12 @@ def main(argv: list[str] | None = None) -> int:
         "",
         f"Failure modes whose intended warning fires in at least {DETECTION_TARGET:.0%} of test "
         f"runs: {h['n_detected']} of {h['n_failure_modes']}.",
+        "",
+        f"Headline: {h['headline']}.",
+        "",
+        f"False-alarm rate of each check on the `{NULL}` test runs (k of {fa['n']} runs):",
+        "",
+        null_false_alarm_markdown(fa["per_code"]),
         "",
     ]
     md_extra = [

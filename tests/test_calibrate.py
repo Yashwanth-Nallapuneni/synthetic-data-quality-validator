@@ -81,10 +81,10 @@ def test_broken_runs_do_not_change_thresholds():
     assert th1 == th2
 
 
-def test_split_runs_even_calibration_odd_test():
-    runs = [run("heldout_real", s) for s in range(6)]
+def test_split_runs_calibration_seeds_below_20_test_seeds_from_20():
+    runs = [run("heldout_real", sd) for sd in (0, 5, 19, 20, 33, 39)]
     c, t = cal.split_runs(runs)
-    assert {r["seed"] for r in c} == {0, 2, 4} and {r["seed"] for r in t} == {1, 3, 5}
+    assert {r["seed"] for r in c} == {0, 5, 19} and {r["seed"] for r in t} == {20, 33, 39}
 
 
 def test_detection_table_intended_and_any():
@@ -122,7 +122,7 @@ def test_main_writes_outputs(tmp_path):
     runs = []
     for d in ("a", "b"):
         for g in cal.ORDER:
-            for s in range(4):
+            for s in (0, 10, 20, 30):
                 runs.append(
                     run(
                         g,
@@ -136,11 +136,13 @@ def test_main_writes_outputs(tmp_path):
     out = tmp_path / "thr.json"
     assert cal.main(["--results", str(tmp_path), "--thresholds-out", str(out)]) == 0
     saved = json.loads(out.read_text())
-    assert saved["calibration"]["calibration_seeds"] == [0, 2]
+    assert saved["calibration"]["calibration_seeds"] == [0, 10]
     assert saved["calibration"]["generators_used_for_calibration"] == ["heldout_real"]
     assert saved["thresholds"]["c2st_auc"] == pytest.approx(0.55)
     summary = json.loads((tmp_path / "summary.json").read_text())
     assert summary["heldout_real_false_alarm"]["k"] == 0
+    assert summary["heldout_real_false_alarm"]["per_code"]["dependence_shift"]["n"] == 4
+    assert "of 4 held-out-real runs raising any warning" in summary["headline"]
     assert (tmp_path / "detection_matrix.md").exists()
 
 
@@ -161,3 +163,13 @@ def test_embed_in_readme_replaces_only_between_markers(tmp_path):
     assert p.read_text() == f"before\n{cal.START_MARK}\n\nNEW TABLE\n\n{cal.END_MARK}\nafter\n"
     cal.embed_in_readme(p, "NEW TABLE\n")
     assert p.read_text().count("NEW TABLE") == 1
+
+
+def test_lodo_null_uses_only_calibration_seeds():
+    runs = [
+        run("heldout_real", 0, dataset="a", **{"detectability.auc_mean": 0.5}),
+        run("heldout_real", 25, dataset="a", **{"detectability.auc_mean": 0.99}),
+        run("heldout_real", 0, dataset="b", **{"detectability.auc_mean": 0.5}),
+    ]
+    out = cal.lodo_table(runs, ["a", "b"])
+    assert out["thresholds"]["b"]["c2st_auc"] == pytest.approx(0.55)  # a's seed-25 run unused

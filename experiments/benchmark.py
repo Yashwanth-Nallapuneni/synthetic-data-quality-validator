@@ -46,7 +46,7 @@ CACHE = ROOT / "cache"
 RESULTS = ROOT / "results"
 ADULT_ROWS = 6000
 TRAIN_FRAC = 0.5
-SEEDS = 20
+SEEDS = 40
 
 
 @dataclass(frozen=True)
@@ -150,7 +150,7 @@ def versions() -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--seeds", type=int, default=SEEDS, help="seeds 0..N-1 (default 20)")
+    ap.add_argument("--seeds", type=int, default=SEEDS, help="seeds 0..N-1 (default 40)")
     ap.add_argument("--jobs", type=int, default=-1)
     ap.add_argument("--out", type=Path, default=RESULTS)
     ap.add_argument("--datasets", nargs="*", default=[d.name for d in DATASETS])
