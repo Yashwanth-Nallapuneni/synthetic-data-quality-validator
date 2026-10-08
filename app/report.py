@@ -6,7 +6,7 @@ from app.metrics.fidelity import compute_fidelity
 from app.metrics.privacy import compute_privacy_risk
 from app.metrics.utility import compute_utility
 from app.utils.column_types import detect_column_types
-from app.utils.preprocessing import coerce_features
+from app.utils.preprocessing import coerce_features, to_jsonable
 
 
 def generate_trust_report(
@@ -104,7 +104,7 @@ def generate_trust_report(
 
     # 4. Diversity
 
-    report["diversity"] = compute_diversity(real_features, synth_features)
+    report["diversity"] = compute_diversity(real_features, synth_features, numeric_cols)
 
 
     # 5. Warnings
@@ -119,7 +119,9 @@ def generate_trust_report(
 
     # Diversity warnings
     var_ratio = report["diversity"]["mean_variance_ratio"]
-    if var_ratio < 0.5:
+    if var_ratio is None:
+        pass
+    elif var_ratio < 0.5:
         warnings.append("Synthetic data shows signs of mode collapse")
     elif var_ratio > 1.5:
         warnings.append("Synthetic data shows excessive variance / instability")
@@ -155,7 +157,7 @@ def generate_trust_report(
                 )
 
     report["warnings"] = warnings
-    return report
+    return to_jsonable(report)
 
 
 def _utility_warnings(utility: dict) -> list[str]:

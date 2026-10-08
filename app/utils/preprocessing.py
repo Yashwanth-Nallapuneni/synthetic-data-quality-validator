@@ -80,3 +80,21 @@ def build_preprocessor(numeric_cols: list[str], categorical_cols: list[str]) -> 
             )
         )
     return ColumnTransformer(transformers, sparse_threshold=0.0)
+
+
+def to_jsonable(obj):
+    """Recursively convert numpy types to Python types and NaN/inf to None."""
+    if isinstance(obj, dict):
+        return {str(k): to_jsonable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_jsonable(v) for v in obj]
+    if isinstance(obj, (np.bool_, bool)):
+        return bool(obj)
+    if isinstance(obj, (np.integer, int)):
+        return int(obj)
+    if isinstance(obj, (np.floating, float)):
+        value = float(obj)
+        return value if np.isfinite(value) else None
+    if isinstance(obj, np.ndarray):
+        return to_jsonable(obj.tolist())
+    return obj

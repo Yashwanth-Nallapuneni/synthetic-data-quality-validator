@@ -17,14 +17,16 @@ def _js_divergence(real, synth, bins=30):
 def compute_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame):
     """
     Computes distribution similarity metrics between real and synthetic data.
-    Assumes both dataframes contain identical feature columns (no labels).
+    Assumes both dataframes contain the same numeric feature columns (no labels).
     """
 
     results = {}
 
     for col in real_df.columns:
-        r = real_df[col].values
-        s = synth_df[col].values
+        r = real_df[col].dropna().to_numpy(dtype=float)
+        s = synth_df[col].dropna().to_numpy(dtype=float)
+        if len(r) == 0 or len(s) == 0:
+            continue
 
         ks_stat, ks_p = ks_2samp(r, s)
         w_dist = wasserstein_distance(r, s)
@@ -35,6 +37,9 @@ def compute_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame):
             "wasserstein_distance": float(w_dist),
             "js_divergence": float(js_div),
         }
+
+    if not results:
+        return None
 
     summary = {
         "mean_ks": float(np.mean([v["ks_statistic"] for v in results.values()])),

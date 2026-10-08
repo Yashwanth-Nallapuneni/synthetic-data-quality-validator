@@ -30,6 +30,8 @@ def compute_categorical_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame, 
     js_scores = []
 
     for col in categorical_cols:
+        if real_df[col].notna().sum() == 0 or synth_df[col].notna().sum() == 0:
+            continue
         categories, p_real, p_synth = _category_distributions(
             real_df[col], synth_df[col]
         )
