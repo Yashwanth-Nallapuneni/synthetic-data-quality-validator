@@ -117,10 +117,10 @@ CHECKS: tuple[Check, ...] = (
     ),
     Check(
         "utility_degradation",
-        "utility.*.accuracy_ratio",
-        "utility_accuracy_ratio",
+        "utility.*.balanced_accuracy_ratio",
+        "utility_balanced_accuracy_ratio",
         BELOW,
-        "Significant downstream utility degradation ({model}, TSTR/TRTR accuracy ratio)",
+        "Significant downstream utility degradation ({model}, TSTR/TRTR balanced-accuracy ratio)",
     ),
     Check(
         "utility_degradation",

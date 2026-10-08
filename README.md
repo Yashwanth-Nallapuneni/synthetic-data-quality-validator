@@ -51,9 +51,9 @@ A classifier tries to tell real rows (label 0) from synthetic rows (label 1).
 - TRTR (train on real, test on real) and TSTR (train on synthetic, test on real) for each model, scored on the same held-out real split (70/30, fixed seed)
 - Numeric columns are standardised and categorical columns are one-hot encoded inside an sklearn Pipeline
 - The label can be any column. The task is detected from the label: small integer-coded or string labels are classification, many-valued numeric labels are regression
-- Classification models: logistic regression and HistGradientBoostingClassifier. Metrics: accuracy, weighted F1 and top-label Expected Calibration Error (binary and multiclass)
+- Classification models: logistic regression and HistGradientBoostingClassifier. Metrics: accuracy, balanced accuracy, weighted F1 and top-label Expected Calibration Error (binary and multiclass)
 - Regression models: ridge regression and HistGradientBoostingRegressor. Metrics: R2 and MAE
-- The output is `models.<name>.trtr`, `models.<name>.tstr` and `models.<name>.tstr_vs_trtr` (accuracy ratio and ECE increase, or R2 drop)
+- The output is `models.<name>.trtr`, `models.<name>.tstr` and `models.<name>.tstr_vs_trtr` (accuracy ratio, balanced-accuracy ratio and ECE increase, or R2 drop)
 - Splits are stratified only when every class has at least 2 rows and the split is feasible
 - Fewer than 10 labelled real rows, or a single-class real label, gives `status: "insufficient_data"` with a reason. A single-class synthetic label is scored as a constant predictor and flagged
 
@@ -91,7 +91,7 @@ Each warning is an object `{"code", "message", "metric", "value", "threshold"}`.
 | `categorical_worst_shift` | the largest single-category share shift is above `categorical_worst_shift` (0.25) |
 | `dependence_shift` | the mean absolute dependence difference is above `dependence_mean_abs_diff` (0.1) |
 | `detectability_high_auc` | the C2ST AUC is above `c2st_auc` (0.7) |
-| `utility_degradation` | for any model, TSTR accuracy is below `utility_accuracy_ratio` (0.8) times TRTR accuracy, or the TSTR R2 drop is above `utility_r2_drop` (0.2). The model is named in the message |
+| `utility_degradation` | for any model, TSTR balanced accuracy is below `utility_balanced_accuracy_ratio` (0.8) times TRTR balanced accuracy (balanced accuracy has chance level 1/k whatever the class balance, so a majority-class predictor does not hide label damage), or the TSTR R2 drop is above `utility_r2_drop` (0.2). The model is named in the message |
 | `utility_calibration_degradation` | for any model, TSTR ECE is more than `utility_ece_increase` (0.1) above TRTR ECE |
 | `utility_synthetic_single_class` | synthetic labels contain a single class |
 

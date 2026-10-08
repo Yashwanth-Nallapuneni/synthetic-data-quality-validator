@@ -152,7 +152,7 @@ def test_both_models_reported_with_tstr_and_trtr_names():
     assert set(u["models"]) == {"logistic_regression", "hist_gradient_boosting"}
     for m in u["models"].values():
         assert set(m) == {"trtr", "tstr", "tstr_vs_trtr"}
-        assert set(m["trtr"]) == {"accuracy", "f1", "ece"}
+        assert set(m["trtr"]) == {"accuracy", "balanced_accuracy", "f1", "ece"}
         assert m["tstr_vs_trtr"]["accuracy_ratio"] == pytest.approx(
             m["tstr"]["accuracy"] / m["trtr"]["accuracy"]
         )
@@ -179,3 +179,31 @@ def test_destroyed_labels_give_low_tstr_accuracy():
     synth["label"] = np.random.default_rng(0).permutation(synth["label"].to_numpy())
     m = compute_utility(real, synth, "label")["models"]["logistic_regression"]
     assert m["tstr_vs_trtr"]["accuracy_ratio"] < 0.8
+
+
+def _imbalanced(seed, n=1500):
+    """80/20 binary label that depends on x (so a real model beats the majority class)."""
+    r = np.random.default_rng(seed)
+    x = r.normal(size=n)
+    z = r.normal(size=n)
+    y = (x + 0.3 * r.normal(size=n) > 0.85).astype(int)
+    return pd.DataFrame({"x": x, "z": z, "label": y})
+
+
+def test_imbalanced_label_shuffle_triggers_utility_degradation_but_fresh_sample_does_not():
+    from app.thresholds import Thresholds
+    from tests.conftest import codes
+
+    real = _imbalanced(1)
+    assert 0.1 < real["label"].mean() < 0.3
+    fresh = _imbalanced(2)
+    shuffled = fresh.copy()
+    shuffled["label"] = np.random.default_rng(0).permutation(shuffled["label"].to_numpy())
+    th = Thresholds()
+    bad = generate_trust_report(real, shuffled, "label", thresholds=th)
+    good = generate_trust_report(real, fresh, "label", thresholds=th)
+    assert "utility_degradation" in codes(bad)
+    assert "utility_degradation" not in codes(good)
+    # plain accuracy hides it: a majority-class predictor keeps accuracy high
+    lr = bad["utility"]["models"]["logistic_regression"]["tstr_vs_trtr"]
+    assert lr["accuracy_ratio"] > 0.8 > lr["balanced_accuracy_ratio"]

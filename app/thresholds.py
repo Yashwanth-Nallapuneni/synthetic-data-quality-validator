@@ -28,7 +28,7 @@ class Thresholds:
     # Numeric marginals (largest per-column KS statistic)
     numeric_max_ks: float = 0.2
     # Utility (TSTR compared with TRTR)
-    utility_accuracy_ratio: float = 0.8
+    utility_balanced_accuracy_ratio: float = 0.8
     utility_r2_drop: float = 0.2
     utility_ece_increase: float = 0.1
     # Categorical fidelity

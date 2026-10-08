@@ -5,7 +5,13 @@ import pandas as pd
 from sklearn.base import clone
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.linear_model import LogisticRegression, Ridge
-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, r2_score
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    mean_absolute_error,
+    r2_score,
+)
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 
@@ -82,6 +88,7 @@ def _classification_metrics(model, X_test, y_test) -> dict:
     correct = pred == np.asarray(y_test)
     return {
         "accuracy": float(accuracy_score(y_test, pred)),
+        "balanced_accuracy": float(balanced_accuracy_score(y_test, pred)),
         "f1": float(f1_score(y_test, pred, average="weighted", zero_division=0)),
         "ece": expected_calibration_error(conf, correct),
     }
@@ -93,6 +100,7 @@ def _constant_classification_metrics(label, y_test) -> dict:
     correct = pred == np.asarray(y_test)
     return {
         "accuracy": float(accuracy_score(y_test, pred)),
+        "balanced_accuracy": float(balanced_accuracy_score(y_test, pred)),
         "f1": float(f1_score(y_test, pred, average="weighted", zero_division=0)),
         "ece": expected_calibration_error(np.ones(len(y_test)), correct),
     }
@@ -126,7 +134,13 @@ def _comparison(task: str, trtr: dict, tstr: dict) -> dict:
     if task == "regression":
         return {"r2_drop": trtr["r2"] - tstr["r2"]}
     ratio = tstr["accuracy"] / trtr["accuracy"] if trtr["accuracy"] > 0 else None
-    return {"accuracy_ratio": ratio, "ece_increase": tstr["ece"] - trtr["ece"]}
+    bal = trtr["balanced_accuracy"]
+    bal_ratio = tstr["balanced_accuracy"] / bal if bal > 0 else None
+    return {
+        "accuracy_ratio": ratio,
+        "balanced_accuracy_ratio": bal_ratio,
+        "ece_increase": tstr["ece"] - trtr["ece"],
+    }
 
 
 def compute_utility(

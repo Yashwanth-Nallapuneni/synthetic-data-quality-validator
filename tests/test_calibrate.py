@@ -19,8 +19,8 @@ NULLS = [
             "detectability.auc_mean": 0.50 + 0.01 * s,
             "diversity.coverage": 0.80 - 0.01 * s,
             "diversity.mean_variance_ratio": 1.0 + 0.02 * (s - 2),
-            "utility.logistic_regression.accuracy_ratio": 0.99 - 0.01 * s,
-            "utility.hist_gradient_boosting.accuracy_ratio": 0.98,
+            "utility.logistic_regression.balanced_accuracy_ratio": 0.99 - 0.01 * s,
+            "utility.hist_gradient_boosting.balanced_accuracy_ratio": 0.98,
         },
     )
     for s in (0, 2, 4)
@@ -39,7 +39,7 @@ def test_upper_tail_threshold_is_max_plus_margin():
 def test_lower_tail_threshold_is_min_minus_margin_and_pools_models():
     th, _ = cal.calibrate_thresholds(NULLS)
     assert th.coverage_min == pytest.approx(0.76 - 0.076)
-    assert th.utility_accuracy_ratio == pytest.approx(0.95 - 0.095)
+    assert th.utility_balanced_accuracy_ratio == pytest.approx(0.95 - 0.095)
 
 
 def test_two_sided_variance_ratio_uses_both_ends():
