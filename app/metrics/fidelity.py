@@ -1,5 +1,7 @@
 """Numeric marginal fidelity: KS, standardised Wasserstein and quantile-bin JS."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
@@ -8,7 +10,9 @@ from scipy.stats import ks_2samp, wasserstein_distance
 N_QUANTILE_BINS = 10
 
 
-def quantile_js_distance(real: np.ndarray, synth: np.ndarray, n_bins: int = N_QUANTILE_BINS):
+def quantile_js_distance(
+    real: np.ndarray, synth: np.ndarray, n_bins: int = N_QUANTILE_BINS
+) -> float:
     """Jensen-Shannon distance (base 2, range 0 to 1) on bins built from the real data.
 
     The bin edges are the real column's quantiles (n_bins bins holding roughly equal real
@@ -27,7 +31,7 @@ def quantile_js_distance(real: np.ndarray, synth: np.ndarray, n_bins: int = N_QU
     return float(jensenshannon(p, q, base=2))
 
 
-def standardised_wasserstein(real: np.ndarray, synth: np.ndarray):
+def standardised_wasserstein(real: np.ndarray, synth: np.ndarray) -> float | None:
     """1-Wasserstein distance divided by the standard deviation of the real column.
 
     The result is in units of real standard deviations, so it is comparable across
@@ -39,7 +43,7 @@ def standardised_wasserstein(real: np.ndarray, synth: np.ndarray):
     return float(wasserstein_distance(real, synth) / std)
 
 
-def compute_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame):
+def compute_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame) -> dict[str, Any] | None:
     """
     Computes distribution similarity metrics between real and synthetic numeric columns.
     Assumes both dataframes contain the same numeric feature columns.
@@ -53,7 +57,7 @@ def compute_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame):
     - js_divergence: Jensen-Shannon distance on real-quantile bins (see quantile_js_distance)
     """
 
-    results = {}
+    results: dict[str, dict[str, Any]] = {}
 
     for col in real_df.columns:
         r = real_df[col].dropna().to_numpy(dtype=float)

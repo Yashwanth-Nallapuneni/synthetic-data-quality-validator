@@ -11,6 +11,7 @@ snake_case id, one per kind of check.
 
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
+from typing import Any
 
 from app.thresholds import Thresholds
 
@@ -149,7 +150,7 @@ CHECKS: tuple[Check, ...] = (
 CODES: tuple[str, ...] = tuple(dict.fromkeys(c.code for c in CHECKS))
 
 
-def _num(x) -> float | None:
+def _num(x: Any) -> float | None:
     try:
         v = float(x)
     except (TypeError, ValueError):
@@ -157,7 +158,7 @@ def _num(x) -> float | None:
     return v if v == v and abs(v) != float("inf") else None
 
 
-def extract_stats(report: dict) -> dict[str, float | None]:
+def extract_stats(report: dict[str, Any]) -> dict[str, float | None]:
     """Every raw number the checks use, keyed by metric path (None when not computed)."""
     s: dict[str, float | None] = {}
 
@@ -205,7 +206,7 @@ def extract_stats(report: dict) -> dict[str, float | None]:
     return s
 
 
-def extract_context(report: dict) -> dict[str, str]:
+def extract_context(report: dict[str, Any]) -> dict[str, str]:
     """Human detail for messages that cannot be rebuilt from the numbers alone."""
     ctx: dict[str, str] = {}
     cat = (report.get("fidelity") or {}).get("categorical")
@@ -223,17 +224,17 @@ def _threshold_value(check: Check, th: Thresholds) -> float:
     return float(check.threshold)
 
 
-def matching_stats(check: Check, stats: dict) -> list[tuple[str, float]]:
+def matching_stats(check: Check, stats: dict[str, Any]) -> list[tuple[str, float]]:
     """(key, value) pairs for the check's statistic, skipping missing values."""
     return [(k, v) for k, v in stats.items() if v is not None and fnmatchcase(k, check.stat)]
 
 
 def evaluate_checks(
     stats: dict[str, float | None], th: Thresholds, context: dict[str, str] | None = None
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Structured warnings for the given statistics and thresholds."""
     context = context or {}
-    out: list[dict] = []
+    out: list[dict[str, Any]] = []
     for check in CHECKS:
         thr = _threshold_value(check, th)
         for key, value in matching_stats(check, stats):

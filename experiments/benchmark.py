@@ -26,6 +26,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import joblib
 import numpy as np
@@ -64,7 +65,7 @@ DATASETS = (
 )
 
 
-def load_dataset(ds: Dataset) -> tuple[pd.DataFrame, dict]:
+def load_dataset(ds: Dataset) -> tuple[pd.DataFrame, dict[str, Any]]:
     bunch = fetch_openml(data_id=ds.data_id, as_frame=True, parser="auto", data_home=str(CACHE))
     df = bunch.frame.reset_index(drop=True)
     details = bunch.details
@@ -82,16 +83,22 @@ def load_dataset(ds: Dataset) -> tuple[pd.DataFrame, dict]:
     return df, info
 
 
-def split_three(df: pd.DataFrame, label: str, seed: int, max_rows: int | None):
+def split_three(
+    df: pd.DataFrame, label: str, seed: int, max_rows: int | None
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """T (50%), H_gold (25%), H_base (25%), disjoint, stratified by label."""
     if max_rows is not None and len(df) > max_rows:
         df, _ = train_test_split(df, train_size=max_rows, random_state=seed, stratify=df[label])
     train, rest = train_test_split(df, train_size=TRAIN_FRAC, random_state=seed, stratify=df[label])
     gold, base = train_test_split(rest, train_size=0.5, random_state=seed, stratify=rest[label])
-    return tuple(x.reset_index(drop=True) for x in (train, gold, base))
+    return (
+        train.reset_index(drop=True),
+        gold.reset_index(drop=True),
+        base.reset_index(drop=True),
+    )
 
 
-def run_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict]:
+def run_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict[str, Any]]:
     """All generators for one (dataset, seed)."""
     train, gold, base = split_three(df, ds.label, seed, ds.max_rows)
     n_synth = len(gold)
@@ -136,7 +143,7 @@ def run_unit(df: pd.DataFrame, ds: Dataset, seed: int) -> list[dict]:
     return runs
 
 
-def versions() -> dict:
+def versions() -> dict[str, Any]:
     return {
         "python": platform.python_version(),
         "platform": platform.platform(),

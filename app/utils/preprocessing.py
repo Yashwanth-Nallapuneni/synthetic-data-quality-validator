@@ -1,5 +1,7 @@
 """Shared helpers to coerce columns to the types chosen by detect_column_types."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -8,7 +10,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
-def _normalise_value(v):
+def _normalise_value(v: object) -> object:
     """Stringify a categorical value so 1, 1.0 and "1" all map to "1"."""
     if isinstance(v, (float, np.floating)) and float(v).is_integer():
         return str(int(v))
@@ -82,7 +84,7 @@ def build_preprocessor(numeric_cols: list[str], categorical_cols: list[str]) -> 
     return ColumnTransformer(transformers, sparse_threshold=0.0)
 
 
-def to_jsonable(obj):
+def to_jsonable(obj: Any) -> Any:
     """Recursively convert numpy types to Python types and NaN/inf to None."""
     if isinstance(obj, dict):
         return {str(k): to_jsonable(v) for k, v in obj.items()}
@@ -100,7 +102,7 @@ def to_jsonable(obj):
     return obj
 
 
-def limit_threads_for_small_data(n_rows: int, threshold: int = 5000):
+def limit_threads_for_small_data(n_rows: int, threshold: int = 5000) -> Any:
     """Context manager that pins OpenMP to one thread for small inputs.
 
     Gradient boosting on a few hundred rows is dominated by thread start-up cost

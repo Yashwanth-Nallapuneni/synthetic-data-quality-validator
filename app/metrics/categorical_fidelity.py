@@ -1,9 +1,13 @@
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import jensenshannon
 
 
-def _category_distributions(real_col, synth_col):
+def _category_distributions(
+    real_col: pd.Series, synth_col: pd.Series
+) -> tuple[list[Any], np.ndarray, np.ndarray]:
     """
     Align category distributions over union of categories.
     Returns two probability vectors with same ordering.
@@ -19,7 +23,9 @@ def _category_distributions(real_col, synth_col):
     return categories, real_probs, synth_probs
 
 
-def compute_categorical_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame, categorical_cols):
+def compute_categorical_fidelity(
+    real_df: pd.DataFrame, synth_df: pd.DataFrame, categorical_cols: list[str]
+) -> dict[str, Any] | None:
     """
     Compute categorical fidelity metrics for given columns.
     """

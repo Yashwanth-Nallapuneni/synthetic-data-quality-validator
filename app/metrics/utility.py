@@ -1,5 +1,7 @@
 """Downstream utility: TSTR (train on synthetic) vs TRTR (train on real), tested on real."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.base import clone
@@ -29,7 +31,7 @@ TEST_SIZE = 0.3
 REGRESSION_MIN_UNIQUE = 20
 
 
-def expected_calibration_error(confidences, correct, n_bins: int = 10) -> float:
+def expected_calibration_error(confidences: Any, correct: Any, n_bins: int = 10) -> float:
     """Top-label Expected Calibration Error.
 
     confidences: the predicted probability of the predicted class (max over classes).
@@ -68,7 +70,7 @@ def detect_task(label: pd.Series) -> str:
     return "classification"
 
 
-def _insufficient(reason: str, task: str | None = None) -> dict:
+def _insufficient(reason: str, task: str | None = None) -> dict[str, Any]:
     return {"status": "insufficient_data", "reason": reason, "task": task}
 
 
@@ -80,7 +82,7 @@ def _can_stratify(y: pd.Series, test_size: float) -> bool:
     return bool(counts.min() >= 2 and n_test >= n_classes and n_train >= n_classes)
 
 
-def _classification_metrics(model, X_test, y_test) -> dict:
+def _classification_metrics(model: Any, X_test: Any, y_test: Any) -> dict[str, Any]:
     proba = model.predict_proba(X_test)
     classes = model.classes_
     pred = classes[np.argmax(proba, axis=1)]
@@ -94,7 +96,7 @@ def _classification_metrics(model, X_test, y_test) -> dict:
     }
 
 
-def _constant_classification_metrics(label, y_test) -> dict:
+def _constant_classification_metrics(label: Any, y_test: Any) -> dict[str, Any]:
     """Metrics for a degenerate model that always predicts one class with probability 1."""
     pred = np.full(len(y_test), label, dtype=object)
     correct = pred == np.asarray(y_test)
@@ -106,7 +108,7 @@ def _constant_classification_metrics(label, y_test) -> dict:
     }
 
 
-def _make_models(task: str, seed: int) -> dict:
+def _make_models(task: str, seed: int) -> dict[str, Any]:
     """Unfitted estimators by report name. Each model gets its own fresh preprocessing."""
     if task == "regression":
         return {
@@ -121,7 +123,7 @@ def _make_models(task: str, seed: int) -> dict:
     }
 
 
-def _regression_metrics(model, X_test, y_test) -> dict:
+def _regression_metrics(model: Any, X_test: Any, y_test: Any) -> dict[str, Any]:
     pred = model.predict(X_test)
     return {
         "r2": float(r2_score(y_test, pred)),
@@ -129,7 +131,7 @@ def _regression_metrics(model, X_test, y_test) -> dict:
     }
 
 
-def _comparison(task: str, trtr: dict, tstr: dict) -> dict:
+def _comparison(task: str, trtr: dict[str, Any], tstr: dict[str, Any]) -> dict[str, Any]:
     """Summary of how much TSTR falls short of TRTR."""
     if task == "regression":
         return {"r2_drop": trtr["r2"] - tstr["r2"]}
@@ -150,7 +152,7 @@ def compute_utility(
     numeric_cols: list[str] | None = None,
     categorical_cols: list[str] | None = None,
     seed: int = 42,
-) -> dict:
+) -> dict[str, Any]:
     """TRTR vs TSTR downstream utility, per model.
 
     The real rows are split once (70/30, seeded). For each model, TRTR trains on the real
@@ -182,7 +184,7 @@ def compute_utility(
 
     task = detect_task(real_label)
 
-    def prepare(df: pd.DataFrame):
+    def prepare(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
         df = df[df[label_column].notna()]
         X = coerce_features(df, list(numeric_cols), list(categorical_cols))
         y = (
@@ -207,16 +209,16 @@ def compute_utility(
     if task == "classification" and yr_train.nunique() < 2:
         return _insufficient("Real training split has a single class", task)
 
-    def fit(estimator, X, y) -> Pipeline:
+    def fit(estimator: Any, X: Any, y: Any) -> Pipeline:
         pre = build_preprocessor(list(numeric_cols), list(categorical_cols))
         return Pipeline([("pre", pre), ("model", estimator)]).fit(X, y)
 
-    def score(model, X_test, y_test) -> dict:
+    def score(model: Any, X_test: Any, y_test: Any) -> dict[str, Any]:
         if task == "regression":
             return _regression_metrics(model, X_test, y_test)
         return _classification_metrics(model, X_test, y_test)
 
-    result: dict = {
+    result: dict[str, Any] = {
         "status": "ok",
         "reason": None,
         "task": task,

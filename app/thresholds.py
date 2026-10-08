@@ -9,6 +9,7 @@ calibrated values when that file exists and falls back to the provisional defaul
 import json
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
+from typing import Any
 
 from app.errors import InputError
 
@@ -40,7 +41,7 @@ class Thresholds:
     # Detectability (mean cross-validated ROC AUC of the real-vs-synthetic classifier)
     c2st_auc: float = 0.7
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 

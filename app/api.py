@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+from typing import Any
 
 import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -67,7 +68,7 @@ async def _read_csv(upload: UploadFile, name: str) -> pd.DataFrame:
 
 
 @app.get("/health", response_model=HealthResponse)
-def health():
+def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
@@ -77,7 +78,7 @@ async def validate_synthetic_data(
     synth: UploadFile = File(...),
     label_column: str = Form(...),
     holdout: UploadFile | None = File(None),
-):
+) -> dict[str, Any]:
     real_df = await _read_csv(real, "real")
     synth_df = await _read_csv(synth, "synthetic")
     holdout_df = await _read_csv(holdout, "holdout") if holdout is not None else None

@@ -9,6 +9,7 @@ Exit codes:
 import argparse
 import json
 import sys
+from typing import Any
 
 import pandas as pd
 
@@ -44,7 +45,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _print_summary(report: dict) -> None:
+def _print_summary(report: dict[str, Any]) -> None:
     """Print the headline number of each section (sections that were skipped are omitted)."""
     print("=== SUMMARY ===")
     dep, det, priv = report["dependence"], report["detectability"], report["privacy"]

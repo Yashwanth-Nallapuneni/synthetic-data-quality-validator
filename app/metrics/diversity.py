@@ -1,5 +1,7 @@
 """Diversity: variance ratio, PCA variance ratio and k-NN coverage of the real data."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
@@ -13,7 +15,9 @@ MAX_PCA_COMPONENTS = 10
 MIN_ROWS = 2
 
 
-def _variance_ratios(real_num: pd.DataFrame, synth_num: pd.DataFrame, cols: list[str]):
+def _variance_ratios(
+    real_num: pd.DataFrame, synth_num: pd.DataFrame, cols: list[str]
+) -> dict[str, float]:
     var_real, var_synth = real_num.var(), synth_num.var()
     ratios = {}
     for col in cols:
@@ -41,7 +45,7 @@ def knn_coverage(
     k: int = COVERAGE_K,
     max_queries: int = MAX_COVERAGE_QUERIES,
     seed: int = 42,
-) -> dict:
+) -> dict[str, Any]:
     """Fraction of real rows whose nearest synthetic row is inside the row's own k-NN radius.
 
     For a real row, the radius is its distance to its k-th nearest OTHER real row. The row
@@ -75,7 +79,7 @@ def compute_diversity(
     numeric_cols: list[str],
     categorical_cols: list[str] | None = None,
     seed: int = 42,
-) -> dict:
+) -> dict[str, Any]:
     """Measure how much of the real data's variety the synthetic data reproduces.
 
     Column types come from the caller (app.utils.column_types.detect_column_types).
@@ -89,7 +93,7 @@ def compute_diversity(
     """
     numeric_cols = list(numeric_cols)
     categorical_cols = list(categorical_cols or [])
-    out = {
+    out: dict[str, Any] = {
         "variance_ratio": None,
         "mean_variance_ratio": None,
         "pca_coverage_ratio": None,

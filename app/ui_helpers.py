@@ -6,6 +6,8 @@ Nothing here imports Streamlit, so the logic is unit-tested without a running ap
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
@@ -29,13 +31,13 @@ PRIVACY_EXPLANATION = (
 )
 
 
-def warnings_table(report: dict) -> pd.DataFrame:
+def warnings_table(report: dict[str, Any]) -> pd.DataFrame:
     cols = ["code", "message", "value", "threshold"]
     rows = [{c: w.get(c) for c in cols} for w in report.get("warnings", [])]
     return pd.DataFrame(rows, columns=cols)
 
 
-def numeric_fidelity_table(report: dict) -> pd.DataFrame:
+def numeric_fidelity_table(report: dict[str, Any]) -> pd.DataFrame:
     cols = ["feature", "KS", "Wasserstein (standardised)", "JS"]
     block = (report.get("fidelity") or {}).get("numeric")
     if not block:
@@ -52,7 +54,7 @@ def numeric_fidelity_table(report: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def categorical_fidelity_table(report: dict) -> pd.DataFrame:
+def categorical_fidelity_table(report: dict[str, Any]) -> pd.DataFrame:
     cols = ["feature", "L1", "JS", "worst category", "worst shift"]
     block = (report.get("fidelity") or {}).get("categorical")
     if not block:
@@ -70,7 +72,7 @@ def categorical_fidelity_table(report: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def utility_table(report: dict) -> pd.DataFrame:
+def utility_table(report: dict[str, Any]) -> pd.DataFrame:
     """One row per model and metric: TRTR, TSTR and TSTR minus TRTR."""
     cols = ["model", "metric", "TRTR", "TSTR", "TSTR minus TRTR"]
     util = report.get("utility") or {}
@@ -102,7 +104,7 @@ def utility_table(report: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def privacy_table(report: dict) -> pd.DataFrame:
+def privacy_table(report: dict[str, Any]) -> pd.DataFrame:
     """Headline privacy numbers as metric / value / expected-without-memorisation rows."""
     cols = ["metric", "value", "expected without memorisation"]
     p = report.get("privacy") or {}
@@ -126,7 +128,7 @@ def privacy_table(report: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def diversity_table(report: dict) -> pd.DataFrame:
+def diversity_table(report: dict[str, Any]) -> pd.DataFrame:
     cols = ["measure", "value"]
     d = report.get("diversity") or {}
     rows = []
@@ -142,7 +144,7 @@ def diversity_table(report: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def detectability_table(report: dict) -> pd.DataFrame:
+def detectability_table(report: dict[str, Any]) -> pd.DataFrame:
     cols = ["measure", "value"]
     d = report.get("detectability") or {}
     if d.get("status") != "ok":
@@ -159,7 +161,7 @@ def _dimension_of(metric: str) -> str:
     return metric.split(".", 1)[0]
 
 
-def dimension_verdicts(report: dict) -> pd.DataFrame:
+def dimension_verdicts(report: dict[str, Any]) -> pd.DataFrame:
     """Per-dimension verdict: which checks fired, or whether the dimension was not computed.
 
     This replaces an aggregate score by design: each dimension is judged on its own checks.
@@ -182,7 +184,7 @@ def dimension_verdicts(report: dict) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=cols)
 
 
-def column_kind(report: dict, name: str, series: pd.Series) -> str:
+def column_kind(report: dict[str, Any], name: str, series: pd.Series) -> str:
     """'numeric' or 'categorical' for plotting, using the report's own column typing."""
     fid = report.get("fidelity") or {}
     if name in ((fid.get("numeric") or {}).get("per_feature") or {}):
@@ -241,7 +243,7 @@ def category_share_frame(
     return pd.DataFrame(rows, columns=cols)
 
 
-def dependence_heatmap_frame(report: dict) -> pd.DataFrame:
+def dependence_heatmap_frame(report: dict[str, Any]) -> pd.DataFrame:
     """Long-format absolute association differences (x, y, abs_diff) over all column pairs.
 
     Empty when dependence was not computed or the matrices were left out (very wide data).

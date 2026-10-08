@@ -11,6 +11,7 @@ whose association is undefined on either side (constant column, one category) is
 """
 
 from itertools import combinations
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -83,7 +84,7 @@ def correlation_ratio(values: np.ndarray, groups: np.ndarray) -> float:
     return float(np.sqrt(adj))
 
 
-def _pair_values(df: pd.DataFrame, a: str, b: str):
+def _pair_values(df: pd.DataFrame, a: str, b: str) -> tuple[np.ndarray, np.ndarray]:
     sub = df[[a, b]].dropna()
     return sub[a].to_numpy(), sub[b].to_numpy()
 
@@ -113,10 +114,17 @@ def _mixed_matrix(df: pd.DataFrame, num_cols: list[str], cat_cols: list[str]) ->
     return m
 
 
-def _block(real_m, synth_m, rows, cols, kind, symmetric):
+def _block(
+    real_m: np.ndarray,
+    synth_m: np.ndarray,
+    rows: list[str],
+    cols: list[str],
+    kind: str,
+    symmetric: bool,
+) -> tuple[Any, list[dict[str, Any]]]:
     """Compare one pair of matrices and list its pairs (upper triangle when symmetric)."""
     diff = np.abs(real_m - synth_m)
-    pairs = []
+    pairs: list[dict[str, Any]] = []
     for i in range(len(rows)):
         for j in range(i + 1 if symmetric else 0, len(cols)):
             if np.isfinite(diff[i, j]):
@@ -156,7 +164,7 @@ def compute_dependence(
     synth_df: pd.DataFrame,
     numeric_cols: list[str],
     categorical_cols: list[str],
-) -> dict:
+) -> dict[str, Any]:
     """Compare pairwise association structure between real and synthetic data.
 
     Returns status, per-kind blocks (association matrices for real and synthetic plus the
@@ -178,7 +186,7 @@ def compute_dependence(
         }
 
     blocks = {}
-    all_pairs: list[dict] = []
+    all_pairs: list[dict[str, Any]] = []
 
     if len(numeric_cols) >= 2:
         blocks["numeric_numeric"], p = _block(

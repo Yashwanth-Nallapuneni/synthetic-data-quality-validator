@@ -32,6 +32,7 @@ import datetime
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from app.checks import ABOVE, CHECKS, CODES, evaluate_checks, matching_stats
 from app.thresholds import CALIBRATED_PATH, Thresholds, load_thresholds
@@ -70,7 +71,7 @@ HEADLINE_MODES = (
 ORDER = (HELDOUT, "gaussian_copula", *BROKEN)
 
 
-def load_runs(results: Path) -> list[dict]:
+def load_runs(results: Path) -> list[dict[str, Any]]:
     with open(results / "runs.jsonl") as f:
         runs = [json.loads(line) for line in f if line.strip()]
     bad = [r for r in runs if r["error"]]
@@ -79,19 +80,19 @@ def load_runs(results: Path) -> list[dict]:
     return runs
 
 
-def split_runs(runs: list[dict]) -> tuple[list[dict], list[dict]]:
+def split_runs(runs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """(calibration runs on seeds below N_CAL_SEEDS, test runs on the remaining seeds)."""
     return [r for r in runs if r["seed"] < N_CAL_SEEDS], [
         r for r in runs if r["seed"] >= N_CAL_SEEDS
     ]
 
 
-def calibrate_thresholds(null_runs: list[dict]) -> tuple[Thresholds, dict]:
+def calibrate_thresholds(null_runs: list[dict[str, Any]]) -> tuple[Thresholds, dict[str, Any]]:
     """Learn thresholds from null runs only. Returns (thresholds, per-threshold details)."""
     if any(r["generator"] != NULL for r in null_runs):
         raise ValueError("calibration may only use heldout_real runs")
     values: dict[str, float] = {}
-    details: dict[str, dict] = {}
+    details: dict[str, dict[str, Any]] = {}
     for check in CHECKS:
         if not isinstance(check.threshold, str):
             continue
@@ -134,7 +135,7 @@ def calibrate_thresholds(null_runs: list[dict]) -> tuple[Thresholds, dict]:
     return Thresholds(**values), details
 
 
-def fired_codes(run: dict, th: Thresholds) -> set[str]:
+def fired_codes(run: dict[str, Any], th: Thresholds) -> set[str]:
     return {w["code"] for w in evaluate_checks(run["stats"], th)}
 
 
@@ -142,12 +143,14 @@ def _rate(flags: list[bool]) -> float | None:
     return sum(flags) / len(flags) if flags else None
 
 
-def detection_table(runs: list[dict], th: Thresholds | dict[str, Thresholds]) -> dict:
+def detection_table(
+    runs: list[dict[str, Any]], th: Thresholds | dict[str, Thresholds]
+) -> dict[str, Any]:
     """Per generator: n, hit rate per code, intended-fired rate and any-warning rate.
 
     `th` is one Thresholds for every run, or a dict giving the thresholds per dataset name.
     """
-    table: dict[str, dict] = {}
+    table: dict[str, dict[str, Any]] = {}
     for gen in ORDER:
         rs = [r for r in runs if r["generator"] == gen]
         if not rs:
@@ -171,7 +174,7 @@ def _pct(x: float | None) -> str:
     return "-" if x is None else f"{x:.2f}"
 
 
-def matrix_markdown(table: dict) -> str:
+def matrix_markdown(table: dict[str, Any]) -> str:
     shown = [c for c in CODES if any(t["code_hit_rate"][c] for t in table.values())]
     head = ["generator", "n", *shown, "intended warning fired", "any warning fired"]
     lines = ["| " + " | ".join(head) + " |", "|" + "|".join(["---"] * len(head)) + "|"]
@@ -183,18 +186,18 @@ def matrix_markdown(table: dict) -> str:
     return "\n".join(lines)
 
 
-def null_false_alarm_markdown(per_code: dict) -> str:
+def null_false_alarm_markdown(per_code: dict[str, Any]) -> str:
     lines = ["| warning code | k of n | rate |", "|---|---|---|"]
     for c, v in per_code.items():
         lines.append(f"| `{c}` | {v['k']} of {v['n']} | {v['rate']:.3f} |")
     return "\n".join(lines)
 
 
-def per_dataset(runs: list[dict], th: Thresholds, datasets: list[str]) -> dict:
+def per_dataset(runs: list[dict[str, Any]], th: Thresholds, datasets: list[str]) -> dict[str, Any]:
     return {d: detection_table([r for r in runs if r["dataset"] == d], th) for d in datasets}
 
 
-def per_dataset_markdown(by_ds: dict) -> str:
+def per_dataset_markdown(by_ds: dict[str, Any]) -> str:
     ds = list(by_ds)
     head = ["generator", *[f"{d}: intended / any" for d in ds]]
     lines = ["| " + " | ".join(head) + " |", "|" + "|".join(["---"] * len(head)) + "|"]
@@ -209,7 +212,7 @@ def per_dataset_markdown(by_ds: dict) -> str:
     return "\n".join(lines)
 
 
-def headline(table: dict) -> dict:
+def headline(table: dict[str, Any]) -> dict[str, Any]:
     modes = {}
     for m in HEADLINE_MODES:
         rate = table[m]["intended_fired"]
@@ -250,7 +253,7 @@ def headline(table: dict) -> dict:
     }
 
 
-def lodo_table(runs: list[dict], datasets: list[str]) -> dict:
+def lodo_table(runs: list[dict[str, Any]], datasets: list[str]) -> dict[str, Any]:
     """Detection table where each test run is scored with thresholds learned on the other
     datasets' heldout_real calibration-seed runs, so its own dataset never informs its
     thresholds."""

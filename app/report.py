@@ -1,3 +1,5 @@
+from typing import Any
+
 import pandas as pd
 
 from app import __version__
@@ -16,7 +18,9 @@ from app.utils.column_types import detect_column_types
 from app.utils.preprocessing import coerce_features, to_jsonable
 
 
-def _check_columns(left: pd.DataFrame, right: pd.DataFrame, left_name: str, right_name: str):
+def _check_columns(
+    left: pd.DataFrame, right: pd.DataFrame, left_name: str, right_name: str
+) -> None:
     only_left = sorted(set(left.columns) - set(right.columns))
     only_right = sorted(set(right.columns) - set(left.columns))
     if only_left or only_right:
@@ -33,7 +37,7 @@ def generate_trust_report(
     seed: int = 42,
     thresholds: Thresholds | None = None,
     holdout_df: pd.DataFrame | None = None,
-):
+) -> dict[str, Any]:
     """
     Generates a comprehensive trust report for synthetic data.
 
@@ -85,8 +89,8 @@ def generate_trust_report(
     real_joint = coerce_features(real_df, joint_numeric, joint_categorical)
     synth_joint = coerce_features(synth_df, joint_numeric, joint_categorical)
 
-    report = {"seed": seed, "notices": []}
-    notices = report["notices"]
+    report: dict[str, Any] = {"seed": seed, "notices": []}
+    notices: list[str] = report["notices"]
     if col_types["empty"]:
         notices.append(f"Ignored columns with no values in the real data: {col_types['empty']}")
 
@@ -207,10 +211,11 @@ def generate_trust_report(
 
     report["warnings"] = warnings
     report["thresholds"] = th.to_dict()
-    return to_jsonable(report)
+    jsonable: dict[str, Any] = to_jsonable(report)
+    return jsonable
 
 
-def build_response(report: dict) -> dict:
+def build_response(report: dict[str, Any]) -> dict[str, Any]:
     """Wrap a report in the versioned envelope shared by the API and the CLI JSON output."""
     return {
         "schema_version": SCHEMA_VERSION,

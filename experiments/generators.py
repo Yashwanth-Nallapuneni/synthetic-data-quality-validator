@@ -26,6 +26,7 @@ Deliberately broken generators, one failure mode each:
 
 from collections.abc import Callable
 from functools import partial
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -48,7 +49,9 @@ def split_columns(train: pd.DataFrame, label: str) -> tuple[list[str], list[str]
     return numeric, other
 
 
-def _jitter(df: pd.DataFrame, numeric: list[str], level: float, rng) -> pd.DataFrame:
+def _jitter(
+    df: pd.DataFrame, numeric: list[str], level: float, rng: np.random.Generator
+) -> pd.DataFrame:
     out = df.copy()
     for c in numeric:
         std = float(out[c].std())
@@ -63,11 +66,20 @@ def _pool(fresh: pd.DataFrame | None) -> pd.DataFrame:
     return fresh
 
 
-def exact_copy(train: pd.DataFrame, n: int, label: str, seed: int, fresh=None) -> pd.DataFrame:
+def exact_copy(
+    train: pd.DataFrame, n: int, label: str, seed: int, fresh: pd.DataFrame | None = None
+) -> pd.DataFrame:
     return train.sample(n, replace=False, random_state=seed).reset_index(drop=True)
 
 
-def near_copy(train: pd.DataFrame, n: int, label: str, seed: int, fresh=None, level: float = 0.01):
+def near_copy(
+    train: pd.DataFrame,
+    n: int,
+    label: str,
+    seed: int,
+    fresh: pd.DataFrame | None = None,
+    level: float = 0.01,
+) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     numeric, _ = split_columns(train, label)
     base = train.sample(n, replace=False, random_state=seed).reset_index(drop=True)
@@ -169,7 +181,7 @@ class GaussianCopula:
         numeric, _ = split_columns(train, self.label)
         self.columns_ = list(train.columns)
         self.numeric_ = set(numeric)
-        self.info_: dict[str, dict] = {}
+        self.info_: dict[str, dict[str, Any]] = {}
         scores = np.empty((len(train), len(self.columns_)))
         for j, col in enumerate(self.columns_):
             s = train[col]
@@ -203,7 +215,7 @@ class GaussianCopula:
         corr = np.nan_to_num(corr, nan=0.0)
         np.fill_diagonal(corr, 1.0)
         self.corr_ = _nearest_correlation(corr)
-        self.dtypes_ = train.dtypes.to_dict()
+        self.dtypes_: dict[Any, Any] = train.dtypes.to_dict()
         return self
 
     def sample(self, n: int, seed: int | None = None) -> pd.DataFrame:
@@ -246,10 +258,12 @@ def _nearest_correlation(corr: np.ndarray, eps: float = 1e-6) -> np.ndarray:
     vals = np.clip(vals, eps, None)
     out = (vecs * vals) @ vecs.T
     d = np.sqrt(np.diag(out))
-    return out / np.outer(d, d)
+    return np.asarray(out / np.outer(d, d))
 
 
-def gaussian_copula(train: pd.DataFrame, n: int, label: str, seed: int, fresh=None) -> pd.DataFrame:
+def gaussian_copula(
+    train: pd.DataFrame, n: int, label: str, seed: int, fresh: pd.DataFrame | None = None
+) -> pd.DataFrame:
     return GaussianCopula(label, seed).fit(train).sample(n, seed + 1)
 
 

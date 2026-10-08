@@ -8,6 +8,8 @@ Exact copies of real rows are NOT detected by this test (a copied row is indisti
 from its original); that failure is covered by the privacy check.
 """
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
@@ -29,7 +31,7 @@ def compute_detectability(
     seed: int = 42,
     max_rows_per_side: int | None = None,
     n_splits: int = N_SPLITS,
-) -> dict:
+) -> dict[str, Any]:
     """Cross-validated real-vs-synthetic classifier AUC.
 
     Both sides are subsampled (seeded, without replacement) to the same size, which is the

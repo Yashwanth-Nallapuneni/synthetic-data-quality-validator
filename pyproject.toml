@@ -22,7 +22,16 @@ dependencies = [
 
 [project.optional-dependencies]
 ui = ["streamlit>=1.52,<1.53", "requests>=2.32,<2.33"]
-dev = ["pytest>=9,<10", "ruff>=0.16,<0.17", "httpx>=0.28,<0.29"]
+dev = [
+    "pytest>=9,<10",
+    "pytest-cov>=7.1,<7.2",
+    "ruff>=0.16,<0.17",
+    "httpx>=0.28,<0.29",
+    "mypy>=2.4,<2.5",
+    "pandas-stubs>=2.3.3.260113,<2.4",
+    "scipy-stubs>=1.16.3.3,<1.17",
+    "types-requests>=2.32.4.20260324,<2.33",
+]
 
 [project.scripts]
 synth-validate = "app.cli:main"
@@ -34,7 +43,7 @@ version = { attr = "app.__version__" }
 include = ["app*"]
 
 [tool.setuptools.package-data]
-app = ["calibrated_thresholds.json"]
+app = ["calibrated_thresholds.json", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -50,3 +59,16 @@ ignore = ["B008"]  # FastAPI File()/Form() defaults
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["app", "experiments"]
+strict = true
+exclude = ["venv", "experiments/cache"]
+warn_unreachable = true
+
+# scikit-learn, joblib and threadpoolctl ship no type information and have no
+# maintained stub packages, so their imports are treated as Any.
+[[tool.mypy.overrides]]
+module = ["sklearn.*", "joblib.*", "threadpoolctl.*"]
+ignore_missing_imports = true

@@ -1,5 +1,7 @@
 """Memorisation risk via distance to closest record (DCR) against a holdout baseline."""
 
+from typing import Any
+
 import numpy as np
 import pandas as pd
 from scipy.stats import rankdata
@@ -19,7 +21,7 @@ EXACT_TOL = 1e-9
 def _nn_distances(train: np.ndarray, query: np.ndarray) -> np.ndarray:
     nn = NearestNeighbors(n_neighbors=1).fit(train)
     dist, _ = nn.kneighbors(query)
-    return dist.ravel()
+    return np.asarray(dist.ravel())
 
 
 def closeness_auc(synth_dcr: np.ndarray, holdout_dcr: np.ndarray) -> float:
@@ -36,7 +38,7 @@ def closeness_auc(synth_dcr: np.ndarray, holdout_dcr: np.ndarray) -> float:
     return float(1.0 - u_synth / (n1 * n2))
 
 
-def _describe(d: np.ndarray) -> dict:
+def _describe(d: np.ndarray) -> dict[str, Any]:
     return {
         "mean": float(np.mean(d)),
         "median": float(np.median(d)),
@@ -61,7 +63,7 @@ def compute_privacy_risk(
     thresholds: Thresholds | None = None,
     holdout_df: pd.DataFrame | None = None,
     max_query_rows: int = MAX_QUERY_ROWS,
-) -> dict:
+) -> dict[str, Any]:
     """Distance-to-closest-record (DCR) privacy check with a holdout baseline.
 
     Two modes:
