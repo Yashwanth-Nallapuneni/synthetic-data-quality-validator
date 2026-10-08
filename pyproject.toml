@@ -72,3 +72,12 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 module = ["sklearn.*", "joblib.*", "threadpoolctl.*"]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["app", "experiments"]
+
+[tool.coverage.report]
+show_missing = true
+# Only the `python -m` entrypoint guards are excluded; everything else counts, including
+# the network-only benchmark code in experiments/benchmark.py.
+exclude_also = ['if __name__ == "__main__":']
