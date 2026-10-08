@@ -118,7 +118,7 @@ Each returns a plain dict. Metrics that can lack data return `{"status": "insuff
 - *Protocol.* For each of three OpenML datasets (adult subsampled to `ADULT_ROWS` = 6,000, german_credit, cmc) and each seed, the data is split into three disjoint, label-stratified parts: 50% generator training set `T`, 25% `H_gold` (used as the "good" synthetic output, named `heldout_real`) and 25% `H_base` (the privacy holdout). Generators are the Gaussian copula plus injected failures: `exact_copy`, `near_copy`, `near_copy_5pct`, `column_shuffle`, `mode_collapse`, `category_oversample` and `label_shuffle`. Each run records the `extract_stats` output to `results/runs.jsonl` (default `SEEDS` = 40). Runs are parallelised with joblib and each pins threads to 1.
 - *Seed split.* Seeds below `N_CAL_SEEDS` = 20 calibrate and the rest are a test half.
 - *Rule.* Only `heldout_real` runs (genuinely unseen real data) are the null. For a warn-above check, `threshold = max_null + max(0.10 * |max_null|, 0.01)`, and for warn-below, `min_null - max(0.10 * |min_null|, 0.01)` (`REL_MARGIN`, `ABS_MARGIN`), pooled over datasets, seeds and models. The broken generators play no part in choosing thresholds. `privacy_medium_share` is set to the null maximum without margin and is display only.
-- *Evaluation.* The thresholds are re-applied to the recorded statistics of the test half to produce the detection matrix and false-alarm rates, with a leave-one-dataset-out variant. The README holds the numbers.
+- *Evaluation.* The thresholds are re-applied to the recorded statistics of the test half to produce the detection matrix and false-alarm rates, with a leave-one-dataset-out variant. The numbers are in [VALIDATION.md](VALIDATION.md).
 - `calibrate.py` writes `app/calibrated_thresholds.json` (thresholds plus a `calibration` block) and the result files. Two cases keep a fixed value: the single-class flag uses a literal 0.5 in `CHECKS`, and a threshold with no null values (such as `utility_r2_drop` when no regression dataset is benchmarked) keeps its provisional default, which is why the shipped file still holds 0.2 for it.
 
 ## 7. Design decisions and trade-offs
@@ -134,7 +134,7 @@ Each returns a plain dict. Metrics that can lack data return `{"status": "insuff
 - **Tie-robust privacy rank statistic** next to the quantile rule, because duplicate rows break the latter.
 - **Seeded everywhere.** The same inputs and seed give the same report on the same library versions.
 
-Known limitations are listed in the [README Limitations section](../README.md#limitations). The main ones: thresholds are calibrated on three small datasets and may not transfer, the holdout mode assumes the generator never saw the holdout, C2ST cannot see exact copies, and the dependence summary pools measures of similar but not identical scale.
+Known limitations are listed in the [README Limitations section](../README.md#limitations) (details in [METRICS.md](METRICS.md) and [VALIDATION.md](VALIDATION.md)). The main ones: thresholds are calibrated on three small datasets and may not transfer, the holdout mode assumes the generator never saw the holdout, C2ST cannot see exact copies, and the dependence summary pools measures of similar but not identical scale.
 
 ## 8. Testing and CI
 

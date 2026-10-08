@@ -53,6 +53,7 @@ from experiments.calibrate import (
 from experiments.generators import BROKEN
 
 RESULTS = Path(__file__).resolve().parent / "results"
+VALIDATION_DOC = Path(__file__).resolve().parent.parent / "docs" / "VALIDATION.md"
 ABOVE = "above"
 BELOW = "below"
 
@@ -605,8 +606,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--update-readme",
         type=Path,
+        nargs="?",
+        const=VALIDATION_DOC,
         default=None,
-        help="README whose sdmetrics-comparison markers are replaced with the main table",
+        help="document whose sdmetrics-comparison markers are replaced with the main table "
+        "(default when given without a path: docs/VALIDATION.md)",
     )
     ap.add_argument(
         "--update-full",

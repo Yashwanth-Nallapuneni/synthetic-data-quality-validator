@@ -536,3 +536,13 @@ def test_worst_mapping_changes_only_two_modes_and_uses_known_checks():
         set(v) <= set(cr.SD_CHECKS) | set(cr.WORST_CHECKS) for v in cr.SD_INTENDED_WORST.values()
     )
     assert set(cr.WORST_CHECKS.values()) == {cr.BELOW}
+
+
+def test_validation_doc_embeds_the_comparison_table():
+    import json
+
+    cmp = json.loads((cr.RESULTS / "comparison.json").read_text())
+    doc = cr.VALIDATION_DOC.read_text()
+    a = doc.index(cr.START_MARK) + len(cr.START_MARK)
+    b = doc.index(cr.END_MARK)
+    assert doc[a:b].strip() == cr.readme_markdown(cmp).strip()

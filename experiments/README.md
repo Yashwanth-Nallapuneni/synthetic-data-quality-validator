@@ -6,10 +6,10 @@ Reproduce everything with two commands from the repo root (with the dev environm
 
 ```bash
 python -m experiments.benchmark                          # 40 seeds, several minutes on 8 cores, needs network once
-python -m experiments.calibrate --update-readme README.md
+python -m experiments.calibrate --update-readme docs/VALIDATION.md
 ```
 
-`benchmark` downloads the three datasets from OpenML into `experiments/cache/` (git-ignored), runs every generator on every dataset and seed and writes the raw statistics to `results/runs.jsonl` plus the environment to `results/meta.json`. `calibrate` reads those, learns the thresholds, writes `app/calibrated_thresholds.json` and the evaluation files in `results/` and pastes the detection matrix into the main README between its `detection-matrix` markers. Only the date inside the calibrated file and the run times change when the commands are repeated on the same machine and package versions.
+`benchmark` downloads the three datasets from OpenML into `experiments/cache/` (git-ignored), runs every generator on every dataset and seed and writes the raw statistics to `results/runs.jsonl` plus the environment to `results/meta.json`. `calibrate` reads those, learns the thresholds, writes `app/calibrated_thresholds.json` and the evaluation files in `results/` and pastes the detection matrix into docs/VALIDATION.md between its `detection-matrix` markers. Only the date inside the calibrated file and the run times change when the commands are repeated on the same machine and package versions.
 
 ## Files
 
@@ -34,7 +34,7 @@ python -m experiments.calibrate --update-readme README.md
 - Per (dataset, seed): a stratified 50 / 25 / 25 split into T (generator training set and `real_df`), H_gold (output of the `heldout_real` generator) and H_base (`holdout_df`, the privacy baseline). Every generator makes `len(H_gold)` rows, so row counts are equal across generators. `exact_copy`, `near_copy` and the copula use T. The other four injections start from H_gold (see Changes between v1 and v2)
 - Seeds 0 to 39. Seeds 0 to 19 are the calibration set and seeds 20 to 39 are the test set. All headline numbers come from seeds 20 to 39. The seed controls the subsample, the split, the generator and the validator's own randomness
 - Statistics recorded per run are exactly the numbers `app/checks.py` compares with thresholds (`extract_stats`), so thresholds can be recalibrated without re-running any metric. `tests/test_benchmark.py` checks that re-applying thresholds to recorded statistics gives the same warning codes as `generate_trust_report` on the same inputs
-- Threshold rule and the intended-warning mapping are written in the `calibrate.py` module docstring and in the main README
+- Threshold rule and the intended-warning mapping are written in the `calibrate.py` module docstring and in docs/VALIDATION.md
 
 ## Failure injections
 
@@ -58,7 +58,7 @@ Reproduce with (about 80 minutes with `--jobs 3`, about 1.3 GB of memory per job
 pip install -e ".[compare]"
 python -m experiments.compare_sdmetrics --jobs 3
 python -m experiments.compare_sdmetrics --worst-only --jobs 3   # added later, see "Worst-column variants"
-python -m experiments.compare_report --update-readme README.md --update-full experiments/README.md
+python -m experiments.compare_report --update-readme docs/VALIDATION.md --update-full experiments/README.md
 ```
 
 `compare_sdmetrics` rebuilds T, H_gold, H_base and the synthetic table of all 1,080 runs through `benchmark.split_three` and `benchmark.build_synth` (the only change to `benchmark.py` was extracting `build_synth` from `run_unit`). It also re-runs our validator on every run, times it and compares its statistics with `runs.jsonl`: 0 of 1,080 differed by more than 1e-9, so the comparison used the same inputs and no benchmark result changed. `compare_report` then calibrates and evaluates.
@@ -83,7 +83,7 @@ The lenient view counts any of the six individual SDMetrics checks. The overall-
 
 **Worst-column variants (added after seeing the comparison results).** A fairness review pointed out that our marginal checks use the worst column (maximum KS, largest category shift) while the strict mapping used the averaged QualityReport properties, Column Shapes and Column Pair Trends, which dilute damage to a single column. This was changed after the first results were read, so it is a post-hoc change. It can only make SDMetrics look better, and it was made for that reason. `compare_sdmetrics --worst-only` re-runs only QualityReport (about 1 minute for all 1,080 runs; DCR and NewRowSynthesis were not re-run) on the same regenerated frames, with the same unseen-category handling (QualityReport sees the raw tables), and writes `results/sdmetrics_worst.jsonl`. It records the smallest per-column score of `get_details("Column Shapes")` (`shape_min`, plus `shape_min_numeric` over KSComplement columns and `shape_min_categorical` over TVComplement columns) and the smallest per-pair score of `get_details("Column Pair Trends")` (`pair_min`; pairs SDMetrics cannot score are NaN and skipped, as in its own average). The existing `sdmetrics_runs.jsonl` was not modified, and the re-computed averages match the stored ones in 1,080 of 1,080 runs. The four statistics are calibrated with exactly the protocol above (`heldout_real`, seeds 0 to 19, same rule, warn below). Two columns were added and the existing ones are unchanged: "SDMetrics strict (worst column/pair)" maps `category_oversample` to `shape_min` and `column_shuffle` to `pair_min` or LogisticDetection (memorisation, `label_shuffle` as before, `mode_collapse` still has no check), and "SDMetrics lenient (worst column/pair)" counts every individual check including the four new ones. Both worst views share the any-warning count, which includes all ten checks.
 
-**Result.** The table below is generated by `compare_report` (the same table is in the main README).
+**Result.** The table below is generated by `compare_report` (the same table is in docs/VALIDATION.md).
 
 <!-- sdmetrics-full:start -->
 

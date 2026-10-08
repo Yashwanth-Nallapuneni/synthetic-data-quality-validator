@@ -175,13 +175,14 @@ def test_lodo_null_uses_only_calibration_seeds():
     assert out["thresholds"]["b"]["c2st_auc"] == pytest.approx(0.55)  # a's seed-25 run unused
 
 
-def test_readme_warnings_table_matches_calibrated_json():
+def test_metrics_doc_warnings_table_matches_calibrated_json():
     from pathlib import Path
 
-    readme = (Path(__file__).resolve().parent.parent / "README.md").read_text()
-    a = readme.index(cal.WARN_START_MARK) + len(cal.WARN_START_MARK)
-    b = readme.index(cal.WARN_END_MARK)
-    assert readme[a:b].strip() == cal.warnings_table_markdown().strip()
+    doc = cal.METRICS_DOC.read_text()
+    assert cal.METRICS_DOC == Path(__file__).resolve().parent.parent / "docs" / "METRICS.md"
+    a = doc.index(cal.WARN_START_MARK) + len(cal.WARN_START_MARK)
+    b = doc.index(cal.WARN_END_MARK)
+    assert doc[a:b].strip() == cal.warnings_table_markdown().strip()
 
 
 def test_warnings_table_values_come_from_json(tmp_path):
@@ -190,3 +191,20 @@ def test_warnings_table_values_come_from_json(tmp_path):
     lines = cal.warnings_table_markdown(p).splitlines()
     row = next(r for r in lines if "detectability_high_auc" in r)
     assert "`c2st_auc`: 0.1235 | `c2st_auc`: 0.7 |" in row
+
+
+def test_validation_doc_embeds_the_detection_matrix():
+    doc = cal.VALIDATION_DOC.read_text()
+    a = doc.index(cal.START_MARK) + len(cal.START_MARK)
+    b = doc.index(cal.END_MARK)
+    assert doc[a:b].strip() == (cal.RESULTS / "detection_matrix.md").read_text().strip()
+
+
+def test_generator_flags_default_to_the_docs(tmp_path, monkeypatch):
+    doc = tmp_path / "METRICS.md"
+    doc.write_text(f"{cal.WARN_START_MARK}\nSTALE\n{cal.WARN_END_MARK}\n")
+    monkeypatch.setattr(cal, "METRICS_DOC", doc)
+    assert cal.main(["--update-warnings-table"]) == 0  # bare flag targets METRICS_DOC
+    assert "STALE" not in doc.read_text()
+    assert cal.METRICS_DOC.name == "METRICS.md"
+    assert cal.VALIDATION_DOC.parent.name == "docs"

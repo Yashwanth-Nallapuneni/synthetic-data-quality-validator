@@ -39,6 +39,9 @@ from app.thresholds import CALIBRATED_PATH, Thresholds, load_thresholds
 from experiments.generators import BROKEN, HELDOUT
 
 RESULTS = Path(__file__).resolve().parent / "results"
+DOCS = Path(__file__).resolve().parent.parent / "docs"
+VALIDATION_DOC = DOCS / "VALIDATION.md"
+METRICS_DOC = DOCS / "METRICS.md"
 REL_MARGIN = 0.10
 ABS_MARGIN = 0.01
 N_CAL_SEEDS = 20
@@ -368,7 +371,7 @@ def _sig(x: float) -> str:
 
 
 def warnings_table_markdown(calibrated_path: Path = CALIBRATED_PATH) -> str:
-    """The README warnings table, with values read from the code and the calibrated JSON."""
+    """The warnings table for docs/METRICS.md, values read from the code and calibrated JSON."""
     provisional = Thresholds()
     calibrated = load_thresholds(calibrated_path)
     meta = json.loads(Path(calibrated_path).read_text()).get("calibration", {})
@@ -400,14 +403,20 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--update-readme",
         type=Path,
+        nargs="?",
+        const=VALIDATION_DOC,
         default=None,
-        help="README whose detection-matrix markers are replaced with detection_matrix.md",
+        help="document whose detection-matrix markers are replaced with detection_matrix.md "
+        "(default when given without a path: docs/VALIDATION.md)",
     )
     ap.add_argument(
         "--update-warnings-table",
         type=Path,
+        nargs="?",
+        const=METRICS_DOC,
         default=None,
-        help="README whose warnings-table markers are replaced with the threshold table; "
+        help="document whose warnings-table markers are replaced with the threshold table "
+        "(default when given without a path: docs/METRICS.md); "
         "needs no benchmark results, only the calibrated JSON",
     )
     args = ap.parse_args(argv)
