@@ -1,8 +1,32 @@
-cat <<EOF > .gitignore
+# Environments
 venv/
-__pycache__/
-*.pyc
+.venv/
+env/
 .env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# OS / editor
 .DS_Store
+.idea/
+.vscode/
+
+# Generated output
 report.json
-EOF
+
+# Experiment caches (Phase 3)
+experiments/cache/
+experiments/.cache/
+experiments/data/
