@@ -1,5 +1,6 @@
 import pandas as pd
 
+from app import __version__
 from app.checks import evaluate_checks, extract_context, extract_stats
 from app.errors import InputError
 from app.metrics.categorical_fidelity import compute_categorical_fidelity
@@ -9,6 +10,7 @@ from app.metrics.diversity import compute_diversity
 from app.metrics.fidelity import compute_fidelity
 from app.metrics.privacy import compute_privacy_risk
 from app.metrics.utility import compute_utility, detect_task
+from app.schemas import SCHEMA_VERSION
 from app.thresholds import Thresholds, load_thresholds
 from app.utils.column_types import detect_column_types
 from app.utils.preprocessing import coerce_features, to_jsonable
@@ -85,7 +87,7 @@ def generate_trust_report(
     real_joint = coerce_features(real_df, joint_numeric, joint_categorical)
     synth_joint = coerce_features(synth_df, joint_numeric, joint_categorical)
 
-    report = {"notices": []}
+    report = {"seed": seed, "notices": []}
     notices = report["notices"]
     if col_types["empty"]:
         notices.append(f"Ignored columns with no values in the real data: {col_types['empty']}")
@@ -208,3 +210,13 @@ def generate_trust_report(
     report["warnings"] = warnings
     report["thresholds"] = th.to_dict()
     return to_jsonable(report)
+
+
+def build_response(report: dict) -> dict:
+    """Wrap a report in the versioned envelope shared by the API and the CLI JSON output."""
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "app_version": __version__,
+        "severity": "issues" if report["warnings"] else "clean",
+        "report": report,
+    }

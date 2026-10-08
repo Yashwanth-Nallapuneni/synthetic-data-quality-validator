@@ -6,8 +6,10 @@ import pandas as pd
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 
+from app import __version__
 from app.errors import InputError
-from app.report import generate_trust_report
+from app.report import build_response, generate_trust_report
+from app.schemas import HealthResponse, ValidationResponse
 
 logger = logging.getLogger("synthetic_validator")
 
@@ -19,7 +21,7 @@ app = FastAPI(
     description=(
         "API to evaluate fidelity, utility, privacy, and diversity of synthetic tabular data"
     ),
-    version="1.1.0",
+    version=__version__,
 )
 
 
@@ -64,12 +66,12 @@ async def _read_csv(upload: UploadFile, name: str) -> pd.DataFrame:
     return df
 
 
-@app.get("/health")
+@app.get("/health", response_model=HealthResponse)
 def health():
     return {"status": "ok"}
 
 
-@app.post("/validate")
+@app.post("/validate", response_model=ValidationResponse)
 async def validate_synthetic_data(
     real: UploadFile = File(...),
     synth: UploadFile = File(...),
@@ -96,7 +98,4 @@ async def validate_synthetic_data(
             status_code=500, detail="Internal error while generating the report"
         ) from e
 
-    return {
-        "severity": "issues" if report["warnings"] else "clean",
-        "report": report,
-    }
+    return build_response(report)

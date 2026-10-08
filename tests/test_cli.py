@@ -1,6 +1,7 @@
 import json
 
 from app.cli import main
+from app.schemas import SCHEMA_VERSION
 from tests.conftest import make_dataset
 
 
@@ -43,7 +44,7 @@ def test_exit_0_when_clean(tmp_path):
         ]
     )
     assert code == 0
-    assert json.loads(out.read_text())["warnings"] == []
+    assert json.loads(out.read_text())["report"]["warnings"] == []
 
 
 def test_exit_2_on_missing_file(tmp_path):
@@ -104,7 +105,10 @@ def test_holdout_and_thresholds_options_and_summary(tmp_path, capsys):
         ]
     )
     text = capsys.readouterr().out
-    report = json.loads(out.read_text())
+    envelope = json.loads(out.read_text())
+    report = envelope["report"]
+    assert envelope["schema_version"] == SCHEMA_VERSION
+    assert envelope["severity"] == "issues"
     assert code == 1
     assert report["privacy"]["mode"] == "provided_holdout"
     assert "mode collapse" in text

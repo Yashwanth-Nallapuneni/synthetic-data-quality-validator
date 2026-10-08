@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synthetic-data-quality-validator"
-version = "1.1.0"
+dynamic = ["version"]
 description = "Evaluate fidelity, utility, privacy and diversity of synthetic tabular data"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -26,6 +26,9 @@ dev = ["pytest>=9,<10", "ruff>=0.16,<0.17", "httpx>=0.28,<0.29"]
 
 [project.scripts]
 synth-validate = "app.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "app.__version__" }
 
 [tool.setuptools.packages.find]
 include = ["app*"]

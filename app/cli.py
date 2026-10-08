@@ -13,7 +13,7 @@ import sys
 import pandas as pd
 
 from app.errors import InputError
-from app.report import generate_trust_report
+from app.report import build_response, generate_trust_report
 from app.thresholds import load_thresholds
 
 EXIT_CLEAN = 0
@@ -117,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.out:
         with open(args.out, "w") as f:
-            json.dump(report, f, indent=2)
+            json.dump(build_response(report), f, indent=2)
         print(f"\nReport saved to: {args.out}")
 
     return EXIT_WARNINGS if report["warnings"] else EXIT_CLEAN
