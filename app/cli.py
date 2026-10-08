@@ -1,7 +1,8 @@
 import argparse
 import json
-import pandas as pd
 import sys
+
+import pandas as pd
 
 from app.report import generate_trust_report
 

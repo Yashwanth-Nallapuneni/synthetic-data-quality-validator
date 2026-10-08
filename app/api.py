@@ -1,12 +1,15 @@
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
-import pandas as pd
 import io
+
+import pandas as pd
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from app.report import generate_trust_report
 
 app = FastAPI(
     title="Synthetic Data Quality Validator",
-    description="API to evaluate fidelity, utility, privacy, and diversity of synthetic tabular data",
+    description=(
+        "API to evaluate fidelity, utility, privacy, and diversity of synthetic tabular data"
+    ),
     version="1.0.0",
 )
 
@@ -52,4 +55,4 @@ async def validate_synthetic_data(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

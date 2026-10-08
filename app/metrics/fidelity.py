@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-from scipy.stats import ks_2samp, wasserstein_distance
 from scipy.spatial.distance import jensenshannon
+from scipy.stats import ks_2samp, wasserstein_distance
 
 
 def _js_divergence(real, synth, bins=30):

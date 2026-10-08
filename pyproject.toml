@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synthetic-data-quality-validator"
+version = "1.1.0"
+description = "Evaluate fidelity, utility, privacy and diversity of synthetic tabular data"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Yashwanth Nallapuneni" }]
+dependencies = [
+    "fastapi>=0.125,<0.126",
+    "uvicorn>=0.38,<0.39",
+    "pandas>=2.3,<2.4",
+    "numpy>=2.3,<2.4",
+    "scipy>=1.16,<1.17",
+    "scikit-learn>=1.8,<1.9",
+    "pydantic>=2.12,<2.13",
+    "python-multipart>=0.0.21,<0.1",
+]
+
+[project.optional-dependencies]
+ui = ["streamlit>=1.52,<1.53", "requests>=2.32,<2.33"]
+dev = ["pytest>=9,<10", "ruff>=0.16,<0.17", "httpx>=0.28,<0.29"]
+
+[project.scripts]
+synth-validate = "app.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["venv", ".venv", "experiments/cache"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI File()/Form() defaults

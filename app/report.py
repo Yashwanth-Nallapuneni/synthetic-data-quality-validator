@@ -1,12 +1,11 @@
 import pandas as pd
 
-from app.utils.column_types import detect_column_types
 from app.metrics.categorical_fidelity import compute_categorical_fidelity
-
-from app.metrics.fidelity import compute_fidelity
-from app.metrics.utility import compute_utility
-from app.metrics.privacy import compute_privacy_risk
 from app.metrics.diversity import compute_diversity
+from app.metrics.fidelity import compute_fidelity
+from app.metrics.privacy import compute_privacy_risk
+from app.metrics.utility import compute_utility
+from app.utils.column_types import detect_column_types
 
 
 def generate_trust_report(
