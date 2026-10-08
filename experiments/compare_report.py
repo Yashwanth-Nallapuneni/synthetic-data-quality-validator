@@ -479,6 +479,8 @@ def comparison_markdown(cmp: dict[str, Any]) -> str:
 
 START_MARK = "<!-- sdmetrics-comparison:start -->"
 END_MARK = "<!-- sdmetrics-comparison:end -->"
+FULL_START_MARK = "<!-- sdmetrics-full:start -->"
+FULL_END_MARK = "<!-- sdmetrics-full:end -->"
 
 
 def readme_markdown(cmp: dict[str, Any]) -> str:
@@ -508,6 +510,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="README whose sdmetrics-comparison markers are replaced with the main table",
     )
+    ap.add_argument(
+        "--update-full",
+        type=Path,
+        default=None,
+        help="document whose sdmetrics-full markers are replaced with the whole comparison.md",
+    )
     args = ap.parse_args(argv)
     cmp = build_comparison(
         load_jsonl(args.results / "runs.jsonl"), load_jsonl(args.results / "sdmetrics_runs.jsonl")
@@ -517,6 +525,8 @@ def main(argv: list[str] | None = None) -> int:
     (args.results / "comparison.md").write_text(md)
     if args.update_readme:
         embed_in_readme(args.update_readme, readme_markdown(cmp), START_MARK, END_MARK)
+    if args.update_full:
+        embed_in_readme(args.update_full, md, FULL_START_MARK, FULL_END_MARK)
     print(md)
     return 0
 

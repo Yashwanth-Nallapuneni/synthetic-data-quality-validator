@@ -258,8 +258,127 @@ def test_main_writes_files_and_updates_the_readme(tmp_path):
         (tmp_path / name).write_text("\n".join(json.dumps(r) for r in rows) + "\n")
     readme = tmp_path / "README.md"
     readme.write_text(f"intro\n{cr.START_MARK}\nSTALE\n{cr.END_MARK}\noutro\n")
-    assert cr.main(["--results", str(tmp_path), "--update-readme", str(readme)]) == 0
+    full = tmp_path / "full.md"
+    full.write_text(f"{cr.FULL_START_MARK}\n{cr.FULL_END_MARK}\n")
+    argv = ["--results", str(tmp_path), "--update-readme", str(readme), "--update-full", str(full)]
+    assert cr.main(argv) == 0
+    assert "Per dataset" in full.read_text()
     assert json.loads((tmp_path / "comparison.json").read_text())["headline"]
     assert "SDMetrics strict" in (tmp_path / "comparison.md").read_text()
     body = readme.read_text()
     assert "STALE" not in body and "SDMetrics strict" in body and body.startswith("intro")
+
+
+# The runner with a stand-in for SDMetrics (so it is covered where the extra is not installed)
+
+
+@pytest.fixture
+def fake_sdmetrics(monkeypatch):
+    import sys
+    import types
+
+    class Report:
+        def generate(self, real, fake, md, verbose=False):
+            self.n = len(real)
+
+        def get_properties(self):
+            return pd.DataFrame(
+                {"Property": ["Column Shapes", "Column Pair Trends"], "Score": [0.9, 0.8]}
+            )
+
+        def get_score(self):
+            return 0.85
+
+    def metric(value):
+        class M:
+            @staticmethod
+            def compute(*args, **kwargs):
+                if value is None:
+                    raise ValueError("boom")
+                return value
+
+        return M
+
+    root = types.ModuleType("sdmetrics")
+    root.__version__ = "0.0-fake"
+    reports = types.ModuleType("sdmetrics.reports")
+    single = types.ModuleType("sdmetrics.reports.single_table")
+    single.QualityReport = Report
+    tables = types.ModuleType("sdmetrics.single_table")
+    tables.BinaryLogisticRegression = metric(0.6)
+    tables.MulticlassDecisionTreeClassifier = metric(0.5)
+    tables.DCROverfittingProtection = metric(0.5)
+    tables.LogisticDetection = metric(None)  # errors are recorded, not raised
+    tables.NewRowSynthesis = metric(0.9)
+    for name, mod in {
+        "sdmetrics": root,
+        "sdmetrics.reports": reports,
+        "sdmetrics.reports.single_table": single,
+        "sdmetrics.single_table": tables,
+    }.items():
+        monkeypatch.setitem(sys.modules, name, mod)
+    return tables
+
+
+def test_score_run_records_values_runtimes_and_errors(fake_sdmetrics):
+    df = make_dataset(200, 1)
+    res = cs.score_run(
+        df.iloc[:100].reset_index(drop=True), df.iloc[100:150], df.iloc[150:], "label", 0
+    )
+    m = res["metrics"]
+    assert m["column_shapes"] == 0.9 and m["column_pair_trends"] == 0.8
+    assert m["quality_score"] == 0.85 and m["new_row_synthesis"] == 0.9
+    assert m["efficacy_ratio"] == pytest.approx(1.0) and m["logistic_detection"] is None
+    assert (
+        set(res["errors"]) == {"logistic_detection"}
+        and "boom" in res["errors"]["logistic_detection"]
+    )
+    assert res["runtime_total_s"] >= 0 and res["efficacy_model"] == "BinaryLogisticRegression"
+
+
+def test_score_run_handles_a_zero_trtr_and_regression_labels(fake_sdmetrics):
+    fake_sdmetrics.BinaryLogisticRegression = type(
+        "M", (), {"compute": staticmethod(lambda *a, **k: 0.0)}
+    )
+    df = make_dataset(200, 1)
+    args = (df.iloc[:100].reset_index(drop=True), df.iloc[100:150], df.iloc[150:], "label", 0)
+    res = cs.score_run(*args)
+    assert (
+        res["metrics"]["efficacy_ratio"] is None and "undefined" in res["errors"]["efficacy_ratio"]
+    )
+    reg = df.assign(label=df["age"] * 2 + np.random.default_rng(0).normal(size=len(df)))
+    res = cs.score_run(
+        reg.iloc[:100].reset_index(drop=True), reg.iloc[100:150], reg.iloc[150:], "label", 0
+    )
+    assert res["efficacy_model"] is None and "efficacy_ratio" not in res["metrics"]
+
+
+def test_main_writes_runs_meta_and_directions(fake_sdmetrics, monkeypatch, tmp_path):
+    import json
+
+    from experiments.benchmark import Dataset, run_unit
+
+    ds = Dataset("toy", 0, "label")
+    df = make_dataset(400, 5)
+    results = tmp_path / "bench"
+    results.mkdir()
+    (results / "runs.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in run_unit(df, ds, 0)) + "\n"
+    )
+    monkeypatch.setattr(cs, "RESULTS", results)
+    monkeypatch.setattr(cs, "DATASETS", (ds,))
+    monkeypatch.setattr(cs, "load_dataset", lambda d: (df, {}))
+    monkeypatch.setattr(cs, "verify_directions", lambda: {"scores": {}, "assumptions_verified": []})
+    out = tmp_path / "out"
+    assert cs.main(["--seeds", "1", "--jobs", "1", "--out", str(out)]) == 0
+    runs = [json.loads(line) for line in (out / "sdmetrics_runs.jsonl").read_text().splitlines()]
+    assert len(runs) == 9 and all(r["ours_rerun"]["stats_match"] for r in runs)
+    meta = json.loads((out / "sdmetrics_meta.json").read_text())
+    assert meta["n_runs"] == 9 and meta["n_ours_stats_mismatch"] == 0
+    assert meta["versions"]["sdmetrics"] == "0.0-fake"
+    assert (out / "sdmetrics_directions.json").exists()
+    # without re-running our validator no timing is recorded
+    assert cs.main(["--seeds", "1", "--jobs", "1", "--out", str(out), "--no-rerun-ours"]) == 0
+    assert "ours_rerun" not in json.loads(
+        (out / "sdmetrics_runs.jsonl").read_text().splitlines()[0]
+    )
