@@ -173,3 +173,20 @@ def test_lodo_null_uses_only_calibration_seeds():
     ]
     out = cal.lodo_table(runs, ["a", "b"])
     assert out["thresholds"]["b"]["c2st_auc"] == pytest.approx(0.55)  # a's seed-25 run unused
+
+
+def test_readme_warnings_table_matches_calibrated_json():
+    from pathlib import Path
+
+    readme = (Path(__file__).resolve().parent.parent / "README.md").read_text()
+    a = readme.index(cal.WARN_START_MARK) + len(cal.WARN_START_MARK)
+    b = readme.index(cal.WARN_END_MARK)
+    assert readme[a:b].strip() == cal.warnings_table_markdown().strip()
+
+
+def test_warnings_table_values_come_from_json(tmp_path):
+    p = tmp_path / "t.json"
+    p.write_text(json.dumps({"thresholds": {"c2st_auc": 0.123456}, "calibration": {}}))
+    lines = cal.warnings_table_markdown(p).splitlines()
+    row = next(r for r in lines if "detectability_high_auc" in r)
+    assert "`c2st_auc`: 0.1235 | `c2st_auc`: 0.7 |" in row

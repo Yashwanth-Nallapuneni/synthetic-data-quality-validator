@@ -34,7 +34,7 @@ import sys
 from pathlib import Path
 
 from app.checks import ABOVE, CHECKS, CODES, evaluate_checks, matching_stats
-from app.thresholds import CALIBRATED_PATH, Thresholds
+from app.thresholds import CALIBRATED_PATH, Thresholds, load_thresholds
 from experiments.generators import BROKEN, HELDOUT
 
 RESULTS = Path(__file__).resolve().parent / "results"
@@ -273,11 +273,123 @@ START_MARK = "<!-- detection-matrix:start -->"
 END_MARK = "<!-- detection-matrix:end -->"
 
 
-def embed_in_readme(readme: Path, text: str) -> None:
-    """Replace the text between the detection-matrix markers in `readme` with `text`."""
+def embed_in_readme(
+    readme: Path, text: str, start: str = START_MARK, end: str = END_MARK
+) -> None:
+    """Replace the text between the `start` and `end` markers in `readme` with `text`."""
     body = readme.read_text()
-    a, b = body.index(START_MARK) + len(START_MARK), body.index(END_MARK)
+    a, b = body.index(start) + len(start), body.index(end)
     readme.write_text(body[:a] + "\n\n" + text.strip("\n") + "\n\n" + body[b:])
+
+
+WARN_START_MARK = "<!-- warnings-table:start -->"
+WARN_END_MARK = "<!-- warnings-table:end -->"
+
+# (warning code, what makes it fire, threshold keys it references). The prose names keys only;
+# every number in the README table comes from Thresholds() and the calibrated JSON.
+WARNING_ROWS: list[tuple[str, str, tuple[str, ...]]] = [
+    (
+        "privacy_memorisation",
+        "any of: the share of synthetic rows closer to train than the holdout 5th percentile is "
+        "above `privacy_high_share`; the exact-match rate exceeds the holdout rate by more than "
+        "`privacy_exact_match_margin`; the closeness AUC (P(synthetic DCR < holdout DCR) with "
+        "ties counted half) is above `privacy_closeness_auc`",
+        ("privacy_high_share", "privacy_exact_match_margin", "privacy_closeness_auc"),
+    ),
+    (
+        "diversity_mode_collapse",
+        "mean variance ratio is below `variance_ratio_low`",
+        ("variance_ratio_low",),
+    ),
+    (
+        "diversity_excess_variance",
+        "mean variance ratio is above `variance_ratio_high`",
+        ("variance_ratio_high",),
+    ),
+    (
+        "diversity_low_coverage",
+        "k-NN coverage is below `coverage_min`",
+        ("coverage_min",),
+    ),
+    (
+        "numeric_marginal_shift",
+        "the largest per-column KS statistic is above `numeric_max_ks`",
+        ("numeric_max_ks",),
+    ),
+    (
+        "categorical_mean_l1",
+        "mean categorical L1 is above `categorical_mean_l1`",
+        ("categorical_mean_l1",),
+    ),
+    (
+        "categorical_mean_js",
+        "mean categorical JS is above `categorical_mean_js`",
+        ("categorical_mean_js",),
+    ),
+    (
+        "categorical_worst_shift",
+        "the largest single-category share shift is above `categorical_worst_shift`",
+        ("categorical_worst_shift",),
+    ),
+    (
+        "dependence_shift",
+        "the mean absolute dependence difference is above `dependence_mean_abs_diff`",
+        ("dependence_mean_abs_diff",),
+    ),
+    (
+        "detectability_high_auc",
+        "the C2ST AUC is above `c2st_auc`",
+        ("c2st_auc",),
+    ),
+    (
+        "utility_degradation",
+        "for any model, TSTR balanced accuracy is below `utility_balanced_accuracy_ratio` times "
+        "TRTR balanced accuracy (balanced accuracy has chance level 1/k whatever the class "
+        "balance, so a majority-class predictor does not hide label damage), or the TSTR R2 drop "
+        "is above `utility_r2_drop`. The model is named in the message",
+        ("utility_balanced_accuracy_ratio", "utility_r2_drop"),
+    ),
+    (
+        "utility_calibration_degradation",
+        "for any model, TSTR ECE is more than `utility_ece_increase` above TRTR ECE",
+        ("utility_ece_increase",),
+    ),
+    (
+        "utility_synthetic_single_class",
+        "synthetic labels contain a single class",
+        (),
+    ),
+]
+
+
+def _sig(x: float) -> str:
+    return f"{x:.4g}"
+
+
+def warnings_table_markdown(calibrated_path: Path = CALIBRATED_PATH) -> str:
+    """The README warnings table, with values read from the code and the calibrated JSON."""
+    provisional = Thresholds()
+    calibrated = load_thresholds(calibrated_path)
+    meta = json.loads(Path(calibrated_path).read_text()).get("calibration", {})
+    not_calibrated = set(meta.get("not_calibrated", []))
+
+    def cell(keys: tuple[str, ...], th: Thresholds, mark: bool) -> str:
+        parts = []
+        for k in keys:
+            note = " (not calibrated)" if mark and k in not_calibrated else ""
+            parts.append(f"`{k}`: {_sig(getattr(th, k))}{note}")
+        return "<br>".join(parts) if parts else "n/a"
+
+    lines = [
+        "| Code | Fires when | Calibrated default | Provisional fallback |",
+        "|---|---|---|---|",
+    ]
+    for code, fires, keys in WARNING_ROWS:
+        lines.append(
+            f"| `{code}` | {fires} | {cell(keys, calibrated, True)} "
+            f"| {cell(keys, provisional, False)} |"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -290,7 +402,20 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="README whose detection-matrix markers are replaced with detection_matrix.md",
     )
+    ap.add_argument(
+        "--update-warnings-table",
+        type=Path,
+        default=None,
+        help="README whose warnings-table markers are replaced with the threshold table; "
+        "needs no benchmark results, only the calibrated JSON",
+    )
     args = ap.parse_args(argv)
+
+    if args.update_warnings_table:
+        embed_in_readme(
+            args.update_warnings_table, warnings_table_markdown(), WARN_START_MARK, WARN_END_MARK
+        )
+        return 0
 
     runs = load_runs(args.results)
     meta = json.loads((args.results / "meta.json").read_text())

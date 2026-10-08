@@ -77,26 +77,30 @@ Two modes:
 - Coverage: the fraction of real rows whose nearest synthetic row is within that real row's own distance to its 5th nearest other real row, in the same preprocessed space. Low coverage means parts of the real data have no synthetic counterpart, as in mode collapse. Only the query rows are subsampled (at most 5,000, seeded), so the estimate stays unbiased
 
 ### Warnings
-Every threshold lives in `app/thresholds.py`. `Thresholds()` holds the provisional hand-picked defaults. By default the validator uses the calibrated values shipped in `app/calibrated_thresholds.json` (see below) and falls back to the provisional defaults if that file is missing. `load_thresholds(path)` and `--thresholds` accept a JSON file that overrides any of them, and the thresholds used are included in the report. Warnings are raised when:
+Every threshold lives in `app/thresholds.py`. `Thresholds()` holds the provisional hand-picked defaults. By default the validator uses the calibrated values shipped in `app/calibrated_thresholds.json` (see below) and falls back to the provisional defaults if that file is missing. `load_thresholds(path)` and `--thresholds` accept a JSON file that overrides any of them, and the thresholds used are included in the report.
 Each warning is an object `{"code", "message", "metric", "value", "threshold"}`. The code is a stable snake_case id, `metric` is the path of the statistic that crossed the threshold and `value` and `threshold` are the numbers compared. Any warning makes the API severity `issues` and the CLI exit code 1. The checks live in `app/checks.py`.
 
-| Code | Fires when |
-|---|---|
-| `privacy_memorisation` | the share of synthetic rows closer to train than the holdout 5th percentile is above `privacy_high_share` (0.15), or the exact-match rate exceeds the holdout rate by more than `privacy_exact_match_margin` (0.05), or the closeness AUC (P(synthetic DCR < holdout DCR) with ties counted half, 0.5 without memorisation) is above `privacy_closeness_auc` (0.6) |
-| `diversity_mode_collapse` | mean variance ratio is below `variance_ratio_low` (0.5) |
-| `diversity_excess_variance` | mean variance ratio is above `variance_ratio_high` (1.5) |
-| `diversity_low_coverage` | k-NN coverage is below `coverage_min` (0.5) |
-| `numeric_marginal_shift` | the largest per-column KS statistic is above `numeric_max_ks` (0.2) |
-| `categorical_mean_l1` | mean categorical L1 is above `categorical_mean_l1` (0.3) |
-| `categorical_mean_js` | mean categorical JS is above `categorical_mean_js` (0.2) |
-| `categorical_worst_shift` | the largest single-category share shift is above `categorical_worst_shift` (0.25) |
-| `dependence_shift` | the mean absolute dependence difference is above `dependence_mean_abs_diff` (0.1) |
-| `detectability_high_auc` | the C2ST AUC is above `c2st_auc` (0.7) |
-| `utility_degradation` | for any model, TSTR balanced accuracy is below `utility_balanced_accuracy_ratio` (0.8) times TRTR balanced accuracy (balanced accuracy has chance level 1/k whatever the class balance, so a majority-class predictor does not hide label damage), or the TSTR R2 drop is above `utility_r2_drop` (0.2). The model is named in the message |
-| `utility_calibration_degradation` | for any model, TSTR ECE is more than `utility_ece_increase` (0.1) above TRTR ECE |
-| `utility_synthetic_single_class` | synthetic labels contain a single class |
+<!-- warnings-table:start -->
 
-The numbers in brackets are the provisional defaults, not the calibrated values.
+| Code | Fires when | Calibrated default | Provisional fallback |
+|---|---|---|---|
+| `privacy_memorisation` | any of: the share of synthetic rows closer to train than the holdout 5th percentile is above `privacy_high_share`; the exact-match rate exceeds the holdout rate by more than `privacy_exact_match_margin`; the closeness AUC (P(synthetic DCR < holdout DCR) with ties counted half) is above `privacy_closeness_auc` | `privacy_high_share`: 0.09967<br>`privacy_exact_match_margin`: 0.03186<br>`privacy_closeness_auc`: 0.6209 | `privacy_high_share`: 0.15<br>`privacy_exact_match_margin`: 0.05<br>`privacy_closeness_auc`: 0.6 |
+| `diversity_mode_collapse` | mean variance ratio is below `variance_ratio_low` | `variance_ratio_low`: 0.7668 | `variance_ratio_low`: 0.5 |
+| `diversity_excess_variance` | mean variance ratio is above `variance_ratio_high` | `variance_ratio_high`: 1.386 | `variance_ratio_high`: 1.5 |
+| `diversity_low_coverage` | k-NN coverage is below `coverage_min` | `coverage_min`: 0.7362 | `coverage_min`: 0.5 |
+| `numeric_marginal_shift` | the largest per-column KS statistic is above `numeric_max_ks` | `numeric_max_ks`: 0.1364 | `numeric_max_ks`: 0.2 |
+| `categorical_mean_l1` | mean categorical L1 is above `categorical_mean_l1` | `categorical_mean_l1`: 0.1266 | `categorical_mean_l1`: 0.3 |
+| `categorical_mean_js` | mean categorical JS is above `categorical_mean_js` | `categorical_mean_js`: 0.06209 | `categorical_mean_js`: 0.2 |
+| `categorical_worst_shift` | the largest single-category share shift is above `categorical_worst_shift` | `categorical_worst_shift`: 0.11 | `categorical_worst_shift`: 0.25 |
+| `dependence_shift` | the mean absolute dependence difference is above `dependence_mean_abs_diff` | `dependence_mean_abs_diff`: 0.07403 | `dependence_mean_abs_diff`: 0.1 |
+| `detectability_high_auc` | the C2ST AUC is above `c2st_auc` | `c2st_auc`: 0.6125 | `c2st_auc`: 0.7 |
+| `utility_degradation` | for any model, TSTR balanced accuracy is below `utility_balanced_accuracy_ratio` times TRTR balanced accuracy (balanced accuracy has chance level 1/k whatever the class balance, so a majority-class predictor does not hide label damage), or the TSTR R2 drop is above `utility_r2_drop`. The model is named in the message | `utility_balanced_accuracy_ratio`: 0.7711<br>`utility_r2_drop`: 0.2 (not calibrated) | `utility_balanced_accuracy_ratio`: 0.8<br>`utility_r2_drop`: 0.2 |
+| `utility_calibration_degradation` | for any model, TSTR ECE is more than `utility_ece_increase` above TRTR ECE | `utility_ece_increase`: 0.1056 | `utility_ece_increase`: 0.1 |
+| `utility_synthetic_single_class` | synthetic labels contain a single class | n/a | n/a |
+
+<!-- warnings-table:end -->
+
+The table names the threshold keys each warning uses. The two value columns are generated by `python -m experiments.calibrate --update-warnings-table README.md` and checked by a test, so they cannot drift from the code. "Calibrated default" is the value in `app/calibrated_thresholds.json`, which the validator uses unless you pass `--thresholds`. "Provisional fallback" is the hand-picked `Thresholds()` default, used only if that file is missing. Values are rounded to 4 significant digits. `utility_r2_drop` is not calibrated because there is no regression dataset, so its calibrated default is the provisional value.
 
 The report also has a `notices` list for things that are not warnings, such as a metric skipped because the data was too small, a subsample being used or the privacy baseline mode.
 
