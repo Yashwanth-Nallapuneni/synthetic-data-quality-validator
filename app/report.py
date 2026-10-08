@@ -97,7 +97,9 @@ def generate_trust_report(
 
     # 3. Privacy
 
-    report["privacy"] = compute_privacy_risk(real_features, synth_features)
+    report["privacy"] = compute_privacy_risk(
+        real_features, synth_features, numeric_cols, categorical_cols, seed=seed
+    )
 
 
     # 4. Diversity
@@ -110,7 +112,9 @@ def generate_trust_report(
     warnings = []
 
     # Privacy warning
-    if report["privacy"]["privacy_risk_level"] == "HIGH":
+    if report["privacy"]["status"] != "ok":
+        report["notices"].append(f"Privacy not computed: {report['privacy']['reason']}")
+    elif report["privacy"]["privacy_risk_level"] == "HIGH":
         warnings.append("High memorization risk detected")
 
     # Diversity warnings
