@@ -7,7 +7,7 @@ The warning thresholds are calibrated on held-out real data and the validator is
 ## Live demo and deployment
 
 - **API (deployed on Render free tier, cold start takes about a minute):** https://synthetic-data-quality-validator.onrender.com/docs
-- **Streamlit UI:** not deployed. It runs locally with Docker Compose (see [Run with Docker](#run-with-docker)).
+- **Streamlit UI:** not deployed. It runs locally (see [Streamlit UI](#streamlit-ui) and [Run with Docker](#run-with-docker)).
 
 ## Motivation
 
@@ -105,6 +105,7 @@ The report also has a `notices` list for things that are not warnings, such as a
 ```
 synthetic-validator/
 ├── app/
+│   ├── __init__.py               # __version__, the single source of the package version
 │   ├── api.py                    # FastAPI app (POST /validate, GET /health)
 │   ├── cli.py                    # Command-line interface
 │   ├── errors.py                 # InputError for user-data problems
@@ -112,7 +113,8 @@ synthetic-validator/
 │   ├── checks.py                 # Warning checks: raw statistics in, structured warnings out
 │   ├── thresholds.py             # Every warning threshold and the loader
 │   ├── calibrated_thresholds.json  # Thresholds learned by experiments/calibrate.py
-│   ├── schemas.py                # Reserved for response models
+│   ├── schemas.py                # Pydantic response models and SCHEMA_VERSION
+│   ├── ui_helpers.py             # Pure table and plot-data builders for the UI
 │   ├── metrics/
 │   │   ├── fidelity.py           # Numeric fidelity
 │   │   ├── categorical_fidelity.py
@@ -127,7 +129,7 @@ synthetic-validator/
 ├── experiments/                  # Phase 3 benchmark, calibration and results
 ├── tests/                        # pytest suite
 ├── data/                         # 5-row sample files
-├── ui.py                         # Streamlit front end
+├── ui.py                         # Streamlit front end (imports app/ui_helpers.py)
 ├── Dockerfile                    # API image
 ├── Dockerfile.streamlit          # UI image
 ├── docker-compose.yml
@@ -176,7 +178,7 @@ synth-validate --real data/real.csv --synth data/synth.csv --label label --out r
 # or: python -m app.cli ...
 ```
 
-The command prints a short summary (dependence, C2ST AUC, privacy, coverage, utility), then the warnings and notices.
+The command prints a short summary (dependence, C2ST AUC, privacy, coverage, utility), then the warnings and notices. `--out` writes the same versioned JSON envelope the API returns (`schema_version`, `app_version`, `severity`, `report`).
 
 Exit codes, for use in CI:
 
@@ -185,6 +187,23 @@ Exit codes, for use in CI:
 | 0 | No warnings |
 | 1 | The report contains warnings |
 | 2 | Usage or input error (bad arguments, unreadable file, missing label, column mismatch) |
+
+Gate a pipeline on the exit code. Warnings are screening signals, so decide whether code 1 should fail the build or only be reported:
+
+```yaml
+# GitHub Actions step
+- name: Validate synthetic data
+  run: |
+    synth-validate --real data/real.csv --synth data/synth.csv --label label --out report.json
+  # exit 0 passes the step, 1 (warnings) and 2 (input error) fail it
+```
+
+```bash
+# Fail only on input errors and keep warnings as a report
+synth-validate --real real.csv --synth synth.csv --label label --out report.json
+status=$?
+if [ "$status" -eq 2 ]; then exit 2; fi
+```
 
 ### API
 
@@ -195,7 +214,27 @@ curl -F real=@data/real.csv -F synth=@data/synth.csv -F label_column=label \
 # add -F holdout=@holdout.csv for the sharper privacy baseline
 ```
 
-`GET /health` returns `{"status": "ok"}`. `POST /validate` returns `{"severity": "clean" | "issues", "report": {...}}`. Errors:
+`GET /health` returns `{"status": "ok"}`. `POST /validate` returns a versioned envelope:
+
+```json
+{
+  "schema_version": "2.0",
+  "app_version": "2.0.0",
+  "severity": "clean",
+  "report": { "seed": 42, "fidelity": {}, "dependence": {}, "detectability": {},
+              "utility": {}, "privacy": {}, "diversity": {},
+              "warnings": [], "notices": [], "thresholds": {} }
+}
+```
+
+- `schema_version` is the version of the JSON layout (`SCHEMA_VERSION` in `app/schemas.py`). A key that is removed or changes meaning bumps the major part and a new key bumps the minor part. `app_version` is the package version, defined once in `app/__init__.py` and read by `pyproject.toml`
+- `severity` is `issues` when `report.warnings` is not empty and `clean` otherwise
+- The response models are in `app/schemas.py`, wired into the routes with `response_model=` and published at `/docs` and `/openapi.json`. They are strict: an unknown key fails validation, and a test checks real reports from binary, multiclass, regression, tiny, holdout and categorical-only data against them. Only the maps keyed by data (per-feature statistics by column name and per-model utility statistics by model name) are open-ended
+- Each of `dependence`, `detectability`, `utility` and `privacy` has `status` (`ok` or `insufficient_data`) and `reason`. When the status is `insufficient_data` the metric fields are absent. `privacy_risk_level` is then `UNKNOWN`
+- `warnings` is a list of `{code, message, metric, value, threshold}`
+- From version 2.0 the CLI `--out` file is this same envelope. Earlier files held the bare report
+
+Errors:
 
 | Status | Cause |
 |---|---|
@@ -203,13 +242,31 @@ curl -F real=@data/real.csv -F synth=@data/synth.csv -F label_column=label \
 | 413 | File larger than `MAX_UPLOAD_BYTES` (default 10 MB) or more than `MAX_ROWS` rows (default 50,000). Both apply to the optional `holdout` file too |
 | 500 | Unexpected internal error |
 
+### Streamlit UI
+
+```bash
+pip install -e ".[ui]"
+API_URL=http://localhost:8000/validate streamlit run ui.py
+```
+
+Upload the real and synthetic CSV files, optionally a holdout CSV, pick the label column from a selectbox filled from the real file and press Validate. The metrics are computed by the API. The UI only reads the uploaded files itself to draw the marginal plot. It shows:
+- a verdict banner (clean or issues), the notices and a table of warnings with code, message, value and threshold
+- a per-dimension verdict table (pass, warn or not computed) that lists which checks fired
+- per-feature numeric fidelity (KS, standardised Wasserstein, JS) and categorical fidelity tables
+- a real versus synthetic marginal plot for a chosen column (histogram for numeric columns and grouped bars for categorical columns)
+- the dependence section with the absolute association-difference heatmap and the worst pairs
+- the detectability AUC, the utility table (TRTR versus TSTR for every model and metric), the privacy table with a plain-language explanation of DCR, and the diversity table
+- a JSON download button and a collapsible raw JSON view
+
+There is no aggregate trust score, by design. A single number hides which dimension failed and would need weights that this project has no data to justify, so each dimension gets its own verdict instead. The table logic is in `app/ui_helpers.py` and is unit-tested without Streamlit.
+
 ### Run with Docker
 
 ```bash
 docker compose up --build
 ```
 
-The API is on http://localhost:8000 and the UI on http://localhost:8502. The compose file sets `API_URL=http://api:8000/validate` for the UI. Outside compose, the UI reads `API_URL` from the environment and defaults to the Render deployment.
+The API is on http://localhost:8000 and the UI on http://localhost:8502. The compose file sets `API_URL=http://api:8000/validate` for the UI. Outside compose, the UI reads `API_URL` from the environment and defaults to the Render deployment. The UI image copies `app/` as well as `ui.py` because the UI imports its table builders from `app/ui_helpers.py`.
 
 ## Validation against injected failures
 
@@ -322,6 +379,6 @@ Per-dataset rates and a leave-one-dataset-out variant (thresholds learned from t
 - Utility reports two models per task and warns per model, so the chance of a spurious warning is higher than with one
 - Large inputs are subsampled in places (C2ST rows, privacy query rows, coverage query rows). The report lists this in `notices`
 - Integer-coded columns with few values but a wide range relative to their mean (for example codes 0 to 4) are treated as numeric
-- The Streamlit UI shows the new sections as raw JSON for now and is not deployed
-
-Planned work: a richer UI and a response schema.
+- The Streamlit UI is not deployed. It is tested by rendering the results view from real reports with Streamlit's app tester, not by a browser test
+- There is no aggregate trust score by design (see [Streamlit UI](#streamlit-ui))
+- The package is not published to PyPI
