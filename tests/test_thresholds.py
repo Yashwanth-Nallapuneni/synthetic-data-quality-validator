@@ -29,8 +29,9 @@ def test_shipped_calibrated_file_is_valid_and_documented():
     assert thresholds_module.CALIBRATED_PATH.exists()
     saved = json.loads(thresholds_module.CALIBRATED_PATH.read_text())
     assert set(saved) == {"thresholds", "calibration"}
-    assert set(saved["thresholds"]) == set(Thresholds().to_dict())
-    assert load_thresholds().to_dict() == saved["thresholds"]
+    assert set(saved["thresholds"]) <= set(Thresholds().to_dict())
+    loaded = load_thresholds().to_dict()
+    assert {k: loaded[k] for k in saved["thresholds"]} == saved["thresholds"]
     c = saved["calibration"]
     assert {"rule", "date", "calibration_seeds", "datasets"} <= set(c)
     assert c["generators_used_for_calibration"] == ["heldout_real"]

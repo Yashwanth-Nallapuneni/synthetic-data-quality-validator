@@ -4,6 +4,7 @@ import pytest
 
 from app.metrics.privacy import compute_privacy_risk
 from app.report import generate_trust_report
+from app.thresholds import Thresholds
 from tests.conftest import codes
 
 
@@ -139,3 +140,45 @@ def test_query_rows_are_capped_and_recorded():
     assert p["n_synthetic_queried"] == 100 and p["n_holdout_queried"] == 100
     assert p == compute_privacy_risk(real, synth, COLS, [], holdout_df=holdout, max_query_rows=100)
     assert compute_privacy_risk(real, synth, COLS, [])["subsampled"] is False
+
+
+def _duplicated_real(n=600, seed=0):
+    """Discrete data where about 12% of unseen rows have an exact twin in the training set."""
+    rng = np.random.default_rng(seed)
+    return pd.DataFrame(
+        {
+            "age": rng.integers(20, 60, n).astype(float),
+            "kids": rng.integers(0, 5, n).astype(float),
+            "a": rng.choice(list("vwxyz"), n),
+            "b": rng.choice(list("pqrst"), n),
+            "label": rng.integers(0, 2, n),
+        }
+    )
+
+
+def test_closeness_auc_known_values():
+    from app.metrics.privacy import closeness_auc
+
+    assert closeness_auc(np.array([0.0, 1.0]), np.array([2.0, 3.0])) == 1.0
+    assert closeness_auc(np.array([2.0, 3.0]), np.array([0.0, 1.0])) == 0.0
+    assert closeness_auc(np.zeros(5), np.zeros(7)) == 0.5
+    assert closeness_auc(np.array([1.0, 3.0]), np.array([2.0])) == 0.5
+
+
+def test_duplicates_make_p5_degenerate_but_auc_still_flags_a_near_copy():
+    train = _duplicated_real(600, 0)
+    holdout = _duplicated_real(600, 1)
+    rng = np.random.default_rng(2)
+    near = train.sample(600, random_state=3).reset_index(drop=True)
+    near["age"] += rng.normal(0, 0.02, len(near))
+    fresh = _duplicated_real(600, 4)
+    num, cat = ["age", "kids"], ["a", "b"]
+    th = Thresholds()  # provisional values, independent of any calibrated file
+    p_near = compute_privacy_risk(train, near, num, cat, holdout_df=holdout, thresholds=th)
+    p_fresh = compute_privacy_risk(train, fresh, num, cat, holdout_df=holdout, thresholds=th)
+    assert p_near["dcr_threshold_p5"] == 0.0  # the old quantile rule cannot fire
+    assert p_near["share_closer_than_holdout_p5"] == 0.0
+    assert p_near["dcr_closeness_auc"] > 0.75
+    assert p_near["privacy_risk_level"] == "HIGH"
+    assert abs(p_fresh["dcr_closeness_auc"] - 0.5) < 0.05
+    assert p_fresh["privacy_risk_level"] != "HIGH"

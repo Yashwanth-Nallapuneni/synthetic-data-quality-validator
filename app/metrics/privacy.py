@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from scipy.stats import rankdata
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 
@@ -19,6 +20,20 @@ def _nn_distances(train: np.ndarray, query: np.ndarray) -> np.ndarray:
     nn = NearestNeighbors(n_neighbors=1).fit(train)
     dist, _ = nn.kneighbors(query)
     return dist.ravel()
+
+
+def closeness_auc(synth_dcr: np.ndarray, holdout_dcr: np.ndarray) -> float:
+    """P(synthetic DCR < holdout DCR) + 0.5 * P(equal), from ranks (Mann-Whitney U).
+
+    It is 0.5 when synthetic rows are as far from the training rows as unseen real rows
+    are, and above 0.5 when they sit closer. Ties count one half, so the statistic stays
+    meaningful when many distances are exactly 0 (duplicate rows), where a quantile cut-off
+    on the holdout distances degenerates.
+    """
+    n1, n2 = len(synth_dcr), len(holdout_dcr)
+    ranks = rankdata(np.concatenate([synth_dcr, holdout_dcr]))  # average ranks for ties
+    u_synth = ranks[:n1].sum() - n1 * (n1 + 1) / 2  # pairs where synth is farther (ties 0.5)
+    return float(1.0 - u_synth / (n1 * n2))
 
 
 def _describe(d: np.ndarray) -> dict:
@@ -119,8 +134,11 @@ def compute_privacy_risk(
         exact_rate = float(np.mean(_nn_distances(pre.transform(real), synth_x) <= EXACT_TOL))
     holdout_exact_rate = float(np.mean(holdout_dcr <= EXACT_TOL))
 
-    if share_closer > th.privacy_high_share or (
-        exact_rate > holdout_exact_rate + th.privacy_exact_match_margin
+    closeness = closeness_auc(synth_dcr, holdout_dcr)
+    if (
+        share_closer > th.privacy_high_share
+        or exact_rate > holdout_exact_rate + th.privacy_exact_match_margin
+        or closeness > th.privacy_closeness_auc
     ):
         level = "HIGH"
     elif share_closer > th.privacy_medium_share:
@@ -143,6 +161,8 @@ def compute_privacy_risk(
         "dcr_threshold_p5": threshold,
         "share_closer_than_holdout_p5": share_closer,
         "expected_share_without_memorisation": BASELINE_QUANTILE,
+        "dcr_closeness_auc": closeness,
+        "expected_closeness_auc_without_memorisation": 0.5,
         "exact_match_rate": exact_rate,
         "holdout_exact_match_rate": holdout_exact_rate,
         "privacy_risk_level": level,

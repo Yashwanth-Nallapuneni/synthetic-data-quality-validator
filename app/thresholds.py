@@ -19,6 +19,7 @@ class Thresholds:
     privacy_high_share: float = 0.15
     privacy_medium_share: float = 0.10
     privacy_exact_match_margin: float = 0.05
+    privacy_closeness_auc: float = 0.6
     # Diversity (mean per-column variance ratio, synthetic over real)
     variance_ratio_low: float = 0.5
     variance_ratio_high: float = 1.5

@@ -45,6 +45,14 @@ CHECKS: tuple[Check, ...] = (
         "than unseen real rows do",
     ),
     Check(
+        "privacy_memorisation",
+        "privacy.dcr_closeness_auc",
+        "privacy_closeness_auc",
+        ABOVE,
+        "High memorisation risk: synthetic rows are systematically closer to the training "
+        "rows than unseen real rows are (rank statistic, robust to duplicate rows)",
+    ),
+    Check(
         "diversity_mode_collapse",
         "diversity.mean_variance_ratio",
         "variance_ratio_low",
@@ -158,6 +166,7 @@ def extract_stats(report: dict) -> dict[str, float | None]:
         s["privacy.share_closer_than_holdout_p5"] = _num(p["share_closer_than_holdout_p5"])
         excess = p["exact_match_rate"] - p["holdout_exact_match_rate"]
         s["privacy.exact_match_excess"] = _num(excess)
+        s["privacy.dcr_closeness_auc"] = _num(p["dcr_closeness_auc"])
 
     d = report.get("diversity") or {}
     s["diversity.mean_variance_ratio"] = _num(d.get("mean_variance_ratio"))
