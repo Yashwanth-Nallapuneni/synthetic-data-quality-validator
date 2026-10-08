@@ -47,7 +47,7 @@ if validate_btn:
                     "label_column": label_column,
                 }
 
-                response = requests.post(API_URL, files=files, data=data)
+                response = requests.post(API_URL, files=files, data=data, timeout=120)
 
                 if response.status_code != 200:
                     st.error(f"API error: {response.text}")
@@ -69,6 +69,9 @@ if validate_btn:
                             st.warning(w)
                     else:
                         st.write("No warnings")
+
+                    for notice in report.get("notices", []):
+                        st.info(notice)
 
                     # Key Metrics
                     st.subheader("Utility")
