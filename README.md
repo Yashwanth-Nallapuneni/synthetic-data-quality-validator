@@ -177,4 +177,4 @@ The API is on http://localhost:8000 and the UI on http://localhost:8502. The com
 - No benchmark of the validator against injected failures exists yet, so detection rates are not measured
 - The Streamlit UI is not deployed
 
-Planned work: statistically sounder metrics, a failure-injection benchmark with calibrated thresholds, and a richer UI and response schema.
+Planned work: statistically sounder metrics and a failure-injection benchmark with calibrated thresholds, followed by a richer UI and response schema.
