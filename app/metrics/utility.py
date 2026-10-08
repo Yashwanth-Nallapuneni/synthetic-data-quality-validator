@@ -133,8 +133,10 @@ def compute_utility(
     def prepare(df: pd.DataFrame):
         df = df[df[label_column].notna()]
         X = coerce_features(df, list(numeric_cols), list(categorical_cols))
-        y = as_numeric(df[label_column]) if task == "regression" else as_categorical(
-            df[label_column]
+        y = (
+            as_numeric(df[label_column])
+            if task == "regression"
+            else as_categorical(df[label_column])
         )
         return X, y
 

@@ -32,9 +32,7 @@ def compute_categorical_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame, 
     for col in categorical_cols:
         if real_df[col].notna().sum() == 0 or synth_df[col].notna().sum() == 0:
             continue
-        categories, p_real, p_synth = _category_distributions(
-            real_df[col], synth_df[col]
-        )
+        categories, p_real, p_synth = _category_distributions(real_df[col], synth_df[col])
 
         l1 = float(np.sum(np.abs(p_real - p_synth)))
         js = float(jensenshannon(p_real, p_synth))
@@ -57,8 +55,7 @@ def compute_categorical_fidelity(real_df: pd.DataFrame, synth_df: pd.DataFrame, 
         "mean_l1": float(np.mean(l1_scores)) if l1_scores else 0.0,
         "mean_js": float(np.mean(js_scores)) if js_scores else 0.0,
         "worst_feature": (
-            max(results, key=lambda c: results[c]["l1_distance"])
-            if results else None
+            max(results, key=lambda c: results[c]["l1_distance"]) if results else None
         ),
     }
 

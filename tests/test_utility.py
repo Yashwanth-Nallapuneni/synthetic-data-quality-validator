@@ -86,6 +86,7 @@ def test_regression_label_reports_r2_and_mae():
 
 def test_categorical_features_are_used():
     """The label depends only on a categorical column, so dropping it would fail."""
+
     def gen(seed):
         r = np.random.default_rng(seed)
         c = r.choice(["a", "b"], 400)

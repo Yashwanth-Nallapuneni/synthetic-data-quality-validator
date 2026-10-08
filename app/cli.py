@@ -1,3 +1,11 @@
+"""Command-line interface.
+
+Exit codes:
+  0  no warnings
+  1  the report contains warnings
+  2  usage or input error (bad arguments, unreadable file, missing label, column mismatch)
+"""
+
 import argparse
 import json
 import sys
@@ -6,37 +14,39 @@ import pandas as pd
 
 from app.report import generate_trust_report
 
+EXIT_CLEAN = 0
+EXIT_WARNINGS = 1
+EXIT_INPUT_ERROR = 2
 
-def main():
+
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Synthetic Data Quality Validator"
+        prog="synth-validate",
+        description="Synthetic Data Quality Validator",
+        epilog="Exit codes: 0 clean, 1 warnings found, 2 usage or input error.",
     )
-
     parser.add_argument("--real", required=True, help="Path to real CSV")
     parser.add_argument("--synth", required=True, help="Path to synthetic CSV")
     parser.add_argument("--label", required=True, help="Label column name")
     parser.add_argument("--out", help="Output JSON file (optional)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed (default 42)")
+    return parser
 
-    args = parser.parse_args()
 
-    # Load data
-    real_df = pd.read_csv(args.real)
-    synth_df = pd.read_csv(args.synth)
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)  # argparse exits with code 2 on usage errors
 
-    if args.label not in real_df.columns:
-        raise ValueError(f"Label column '{args.label}' not found in real data")
+    try:
+        real_df = pd.read_csv(args.real)
+        synth_df = pd.read_csv(args.synth)
+        report = generate_trust_report(real_df, synth_df, label_column=args.label, seed=args.seed)
+    except (OSError, pd.errors.ParserError, pd.errors.EmptyDataError, UnicodeDecodeError) as e:
+        print(f"error: could not read input: {e}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
 
-    if args.label not in synth_df.columns:
-        raise ValueError(f"Label column '{args.label}' not found in synthetic data")
-
-    # Run validator
-    report = generate_trust_report(
-        real_df,
-        synth_df,
-        label_column=args.label,
-    )
-
-    # Print warnings
     print("\n=== WARNINGS ===")
     if report["warnings"]:
         for w in report["warnings"]:
@@ -44,18 +54,18 @@ def main():
     else:
         print("No major issues detected.")
 
-    # Save report
+    if report["notices"]:
+        print("\n=== NOTICES ===")
+        for n in report["notices"]:
+            print(f"- {n}")
+
     if args.out:
         with open(args.out, "w") as f:
             json.dump(report, f, indent=2)
         print(f"\nReport saved to: {args.out}")
 
-    # Exit code (useful for CI)
-    if report["warnings"]:
-        sys.exit(1)
-    else:
-        sys.exit(0)
+    return EXIT_WARNINGS if report["warnings"] else EXIT_CLEAN
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

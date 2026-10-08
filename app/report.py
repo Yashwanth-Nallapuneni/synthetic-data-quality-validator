@@ -80,7 +80,6 @@ def generate_trust_report(
         },
     }
 
-
     # 2. Utility
 
     report["utility"] = compute_utility(
@@ -94,18 +93,15 @@ def generate_trust_report(
     if report["utility"]["status"] != "ok":
         report["notices"].append(f"Utility not computed: {report['utility']['reason']}")
 
-
     # 3. Privacy
 
     report["privacy"] = compute_privacy_risk(
         real_features, synth_features, numeric_cols, categorical_cols, seed=seed
     )
 
-
     # 4. Diversity
 
     report["diversity"] = compute_diversity(real_features, synth_features, numeric_cols)
-
 
     # 5. Warnings
 
@@ -138,22 +134,17 @@ def generate_trust_report(
 
         # Overall categorical shift
         if summary["mean_l1"] > 0.3:
-            warnings.append(
-                "Significant categorical distribution shift detected"
-            )
+            warnings.append("Significant categorical distribution shift detected")
 
         # High JS divergence
         if summary["mean_js"] > 0.2:
-            warnings.append(
-                "Categorical distributions differ substantially (high JS divergence)"
-            )
+            warnings.append("Categorical distributions differ substantially (high JS divergence)")
 
         # Severe single-category distortion
         for col, stats in per_feature.items():
             if abs(stats["worst_shift"]) > 0.25:
                 warnings.append(
-                    f"Severe distortion in category '{stats['worst_category']}' "
-                    f"of feature '{col}'"
+                    f"Severe distortion in category '{stats['worst_category']}' of feature '{col}'"
                 )
 
     report["warnings"] = warnings
