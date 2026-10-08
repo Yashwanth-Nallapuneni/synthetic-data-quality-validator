@@ -30,6 +30,9 @@ synth-validate = "app.cli:main"
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+[tool.setuptools.package-data]
+app = ["calibrated_thresholds.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 

@@ -1,0 +1,219 @@
+{
+  "n_test_runs": 270,
+  "test_seeds": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11,
+    13,
+    15,
+    17,
+    19
+  ],
+  "calibration_seeds": [
+    0,
+    2,
+    4,
+    6,
+    8,
+    10,
+    12,
+    14,
+    16,
+    18
+  ],
+  "datasets": [
+    "adult",
+    "german_credit",
+    "cmc"
+  ],
+  "detection_rule": "intended warning fires in at least 90% of test runs",
+  "n_failure_modes": 6,
+  "n_detected": 4,
+  "failure_modes": {
+    "exact_copy": {
+      "intended_codes": [
+        "privacy_memorisation"
+      ],
+      "intended_fired_rate": 1.0,
+      "detected": true
+    },
+    "near_copy": {
+      "intended_codes": [
+        "privacy_memorisation"
+      ],
+      "intended_fired_rate": 0.6666666666666666,
+      "detected": false
+    },
+    "column_shuffle": {
+      "intended_codes": [
+        "dependence_shift",
+        "detectability_high_auc"
+      ],
+      "intended_fired_rate": 1.0,
+      "detected": true
+    },
+    "mode_collapse": {
+      "intended_codes": [
+        "diversity_mode_collapse",
+        "diversity_low_coverage"
+      ],
+      "intended_fired_rate": 1.0,
+      "detected": true
+    },
+    "category_oversample": {
+      "intended_codes": [
+        "categorical_mean_l1",
+        "categorical_mean_js",
+        "categorical_worst_shift"
+      ],
+      "intended_fired_rate": 1.0,
+      "detected": true
+    },
+    "label_shuffle": {
+      "intended_codes": [
+        "utility_degradation"
+      ],
+      "intended_fired_rate": 0.4,
+      "detected": false
+    }
+  },
+  "variant_near_copy_5pct_intended_fired_rate": 0.6666666666666666,
+  "heldout_real_false_alarm": {
+    "k": 0,
+    "n": 30,
+    "rate": 0.0,
+    "codes_fired": {}
+  },
+  "gaussian_copula_any_warning": {
+    "k": 30,
+    "n": 30,
+    "rate": 1.0,
+    "note": "A copula legitimately differs from real data, so these are not strictly false alarms."
+  },
+  "leave_one_dataset_out": {
+    "headline": {
+      "detection_rule": "intended warning fires in at least 90% of test runs",
+      "n_failure_modes": 6,
+      "n_detected": 4,
+      "failure_modes": {
+        "exact_copy": {
+          "intended_codes": [
+            "privacy_memorisation"
+          ],
+          "intended_fired_rate": 1.0,
+          "detected": true
+        },
+        "near_copy": {
+          "intended_codes": [
+            "privacy_memorisation"
+          ],
+          "intended_fired_rate": 0.6666666666666666,
+          "detected": false
+        },
+        "column_shuffle": {
+          "intended_codes": [
+            "dependence_shift",
+            "detectability_high_auc"
+          ],
+          "intended_fired_rate": 1.0,
+          "detected": true
+        },
+        "mode_collapse": {
+          "intended_codes": [
+            "diversity_mode_collapse",
+            "diversity_low_coverage"
+          ],
+          "intended_fired_rate": 1.0,
+          "detected": true
+        },
+        "category_oversample": {
+          "intended_codes": [
+            "categorical_mean_l1",
+            "categorical_mean_js",
+            "categorical_worst_shift"
+          ],
+          "intended_fired_rate": 1.0,
+          "detected": true
+        },
+        "label_shuffle": {
+          "intended_codes": [
+            "utility_degradation"
+          ],
+          "intended_fired_rate": 0.4,
+          "detected": false
+        }
+      },
+      "variant_near_copy_5pct_intended_fired_rate": 0.6666666666666666,
+      "heldout_real_false_alarm": {
+        "k": 2,
+        "n": 30,
+        "rate": 0.06666666666666667,
+        "codes_fired": {
+          "privacy_memorisation": 0.06666666666666667
+        }
+      },
+      "gaussian_copula_any_warning": {
+        "k": 30,
+        "n": 30,
+        "rate": 1.0,
+        "note": "A copula legitimately differs from real data, so these are not strictly false alarms."
+      }
+    },
+    "thresholds_per_held_out_dataset": {
+      "adult": {
+        "privacy_high_share": 0.099674,
+        "privacy_medium_share": 0.089674,
+        "privacy_exact_match_margin": 0.031864,
+        "variance_ratio_low": 0.769212,
+        "variance_ratio_high": 1.257716,
+        "coverage_min": 0.7362,
+        "numeric_max_ks": 0.1364,
+        "utility_accuracy_ratio": 0.800847,
+        "utility_r2_drop": 0.2,
+        "utility_ece_increase": 0.105622,
+        "categorical_mean_l1": 0.126585,
+        "categorical_mean_js": 0.062091,
+        "categorical_worst_shift": 0.11,
+        "dependence_mean_abs_diff": 0.074027,
+        "c2st_auc": 0.612485
+      },
+      "german_credit": {
+        "privacy_high_share": 0.099674,
+        "privacy_medium_share": 0.089674,
+        "privacy_exact_match_margin": 0.031864,
+        "variance_ratio_low": 0.766848,
+        "variance_ratio_high": 1.385892,
+        "coverage_min": 0.769158,
+        "numeric_max_ks": 0.099674,
+        "utility_accuracy_ratio": 0.800847,
+        "utility_r2_drop": 0.2,
+        "utility_ece_increase": 0.105622,
+        "categorical_mean_l1": 0.114441,
+        "categorical_mean_js": 0.055613,
+        "categorical_worst_shift": 0.096957,
+        "dependence_mean_abs_diff": 0.06906,
+        "c2st_auc": 0.612485
+      },
+      "cmc": {
+        "privacy_high_share": 0.098,
+        "privacy_medium_share": 0.088,
+        "privacy_exact_match_margin": 0.010667,
+        "variance_ratio_low": 0.766848,
+        "variance_ratio_high": 1.385892,
+        "coverage_min": 0.7362,
+        "numeric_max_ks": 0.1364,
+        "utility_accuracy_ratio": 0.808475,
+        "utility_r2_drop": 0.2,
+        "utility_ece_increase": 0.087227,
+        "categorical_mean_l1": 0.126585,
+        "categorical_mean_js": 0.062091,
+        "categorical_worst_shift": 0.11,
+        "dependence_mean_abs_diff": 0.074027,
+        "c2st_auc": 0.606936
+      }
+    }
+  }
+}

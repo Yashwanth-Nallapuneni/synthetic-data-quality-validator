@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 
-from app.thresholds import Thresholds
+from app.thresholds import Thresholds, load_thresholds
 from app.utils.preprocessing import build_preprocessor, coerce_features
 
 MIN_REAL_ROWS = 20
@@ -67,7 +67,7 @@ def compute_privacy_risk(
     Query sets above `max_query_rows` are subsampled (seeded) and the result records it.
     The risk thresholds are provisional.
     """
-    th = thresholds or Thresholds()
+    th = thresholds or load_thresholds()
     features = list(numeric_cols) + list(categorical_cols)
     if not features:
         return {

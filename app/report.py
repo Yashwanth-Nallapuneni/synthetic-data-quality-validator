@@ -9,7 +9,7 @@ from app.metrics.diversity import compute_diversity
 from app.metrics.fidelity import compute_fidelity
 from app.metrics.privacy import compute_privacy_risk
 from app.metrics.utility import compute_utility, detect_task
-from app.thresholds import Thresholds
+from app.thresholds import Thresholds, load_thresholds
 from app.utils.column_types import detect_column_types
 from app.utils.preprocessing import coerce_features, to_jsonable
 
@@ -41,9 +41,10 @@ def generate_trust_report(
     the report).
 
     Raises InputError for problems with the supplied data. Warning thresholds come from
-    `thresholds` (provisional defaults when omitted, see app/thresholds.py).
+    `thresholds` (the calibrated file when omitted, else the provisional defaults, see
+    app/thresholds.py).
     """
-    th = thresholds or Thresholds()
+    th = thresholds or load_thresholds()
 
     named = [("real", real_df), ("synthetic", synth_df)]
     if holdout_df is not None:

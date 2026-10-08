@@ -8,7 +8,7 @@ import pytest
 from app.errors import InputError
 from app.metrics.diversity import compute_diversity
 from app.report import generate_trust_report
-from app.thresholds import Thresholds
+from app.thresholds import Thresholds, load_thresholds
 from tests.conftest import codes, make_dataset
 
 DATA = Path(__file__).resolve().parent.parent / "data"
@@ -92,7 +92,7 @@ def test_report_has_new_sections_and_thresholds():
     assert report["detectability"]["status"] == "ok"
     assert report["diversity"]["coverage"]["value"] is not None
     assert set(report["utility"]["models"]) == {"logistic_regression", "hist_gradient_boosting"}
-    assert report["thresholds"]["c2st_auc"] == 0.7
+    assert report["thresholds"] == load_thresholds().to_dict()
     json.dumps(report, allow_nan=False)
 
 

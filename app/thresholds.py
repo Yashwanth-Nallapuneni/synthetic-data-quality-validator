@@ -1,8 +1,9 @@
 """Every warning threshold in one place.
 
-PROVISIONAL: these values are hand-picked defaults that have not been calibrated against
-known-good and known-bad synthetic data. Phase 3 replaces them with calibrated values
-loaded from a JSON file via `load_thresholds(path)`.
+`Thresholds()` holds the PROVISIONAL defaults: hand-picked values that were never fitted to
+data. Phase 3 calibrates them on held-out real data (experiments/calibrate.py) and ships the
+result as app/calibrated_thresholds.json. `load_thresholds()` with no path returns the
+calibrated values when that file exists and falls back to the provisional defaults otherwise.
 """
 
 import json
@@ -42,21 +43,36 @@ class Thresholds:
         return asdict(self)
 
 
-def load_thresholds(path: str | Path | None = None) -> Thresholds:
-    """Return the default thresholds, optionally overridden by a JSON object in `path`.
+CALIBRATED_PATH = Path(__file__).resolve().parent / "calibrated_thresholds.json"
 
-    Unknown keys and non-numeric values raise InputError so a typo cannot silently fall
-    back to a default.
+
+def load_thresholds(path: str | Path | None = None) -> Thresholds:
+    """Thresholds from a JSON file, the shipped calibrated file or the provisional defaults.
+
+    - With `path`: the provisional defaults overridden by the file's values.
+    - Without `path`: the same, using app/calibrated_thresholds.json if it exists, else the
+      provisional defaults.
+
+    The file is either a flat JSON object of threshold values or the calibrated format
+    {"thresholds": {...}, "calibration": {...}} where only "thresholds" is read. Unknown
+    keys and non-numeric values raise InputError so a typo cannot silently fall back to a
+    default.
     """
     base = Thresholds()
     if path is None:
-        return base
+        if not CALIBRATED_PATH.exists():
+            return base
+        path = CALIBRATED_PATH
     try:
         overrides = json.loads(Path(path).read_text())
     except (OSError, json.JSONDecodeError) as e:
         raise InputError(f"Could not read thresholds file {path}: {e}") from e
     if not isinstance(overrides, dict):
         raise InputError("Thresholds file must contain a JSON object")
+    if "thresholds" in overrides:
+        overrides = overrides["thresholds"]
+        if not isinstance(overrides, dict):
+            raise InputError("'thresholds' in the thresholds file must be a JSON object")
     known = {f.name for f in fields(Thresholds)}
     unknown = sorted(set(overrides) - known)
     if unknown:
