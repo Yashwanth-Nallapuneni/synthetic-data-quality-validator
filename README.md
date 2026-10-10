@@ -4,6 +4,7 @@
 ![Python 3.11 | 3.12 | 3.13 | 3.14](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue)
 ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230)
 ![Types: mypy strict](https://img.shields.io/badge/types-mypy%20strict-2a6db2)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Test coverage of `app/` and `experiments/`: 96% (measured 2026-10-08 on Python 3.13, enforced floor 92% in CI).
 
@@ -120,3 +121,7 @@ pip install -e ".[compare]" && python -m experiments.compare_sdmetrics && python
 ```
 
 See [experiments/README.md](experiments/README.md) for protocol details.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
